@@ -46,6 +46,13 @@ import Chat from './pages/Chat';
 import AdminValidSerials from './pages/admin/ValidSerials';
 import BackupManagement from './pages/admin/BackupManagement';
 
+// Training & Download Pages
+import Training from './pages/Training';
+import TrainingCategory from './pages/TrainingCategory';
+import VideoPlayer from './pages/VideoPlayer';
+import DownloadCenter from './pages/DownloadCenter';
+import DocumentCategory from './pages/DocumentCategory';
+
 // Error Pages
 import NotFound from './pages/NotFound';
 
@@ -111,6 +118,13 @@ function App() {
                   <PromotionHistory />
                 </ProtectedRoute>
               } />
+
+              {/* Training & Download Center Routes */}
+              <Route path="/training" element={<Training />} />
+              <Route path="/training/category/:categoryId" element={<TrainingCategory />} />
+              <Route path="/training/video/:videoId" element={<VideoPlayer />} />
+              <Route path="/downloads" element={<DownloadCenter />} />
+              <Route path="/downloads/category/:categoryId" element={<DocumentCategory />} />
 
               {/* Protected Admin Routes */}
               <Route path="/admin/dashboard" element={

@@ -14,6 +14,8 @@ const adminRoutes = require('./routes/admin');
 const serialRoutes = require('./routes/serial');
 const paymentRoutes = require('./routes/payment');
 const promotionRoutes = require('./routes/promotion');
+const trainingRoutes = require('./routes/training');
+const documentsRoutes = require('./routes/documents');
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -73,7 +75,9 @@ app.get('/api', (req, res) => {
       admin: '/api/admin',
       serial: '/api/serial',
       payment: '/api/payment',
-      promotion: '/api/promotion'
+      promotion: '/api/promotion',
+      training: '/api/training',
+      documents: '/api/documents'
     }
   });
 });
@@ -85,6 +89,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/serial', serialRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/promotion', promotionRoutes);
+app.use('/api/training', trainingRoutes);
+app.use('/api/documents', documentsRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

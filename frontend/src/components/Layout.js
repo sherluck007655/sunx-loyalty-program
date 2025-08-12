@@ -17,7 +17,9 @@ import {
   XMarkIcon,
   SunIcon,
   MoonIcon,
-  ArrowRightOnRectangleIcon
+  ArrowRightOnRectangleIcon,
+  PlayIcon,
+  FolderArrowDownIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -50,6 +52,8 @@ const Layout = ({ children, title }) => {
     { name: 'Serial Numbers', href: '/serials', icon: DocumentTextIcon },
     { name: 'Payments', href: '/payments', icon: CreditCardIcon },
     { name: 'Promotions', href: '/promotions', icon: GiftIcon },
+    { name: 'Training', href: '/training', icon: PlayIcon },
+    { name: 'Downloads', href: '/downloads', icon: FolderArrowDownIcon },
   ];
 
   // Navigation items for admin
@@ -63,6 +67,8 @@ const Layout = ({ children, title }) => {
     { name: 'Serial Numbers', href: '/admin/serials', icon: DocumentTextIcon },
     { name: 'Valid Serials', href: '/admin/valid-serials', icon: DocumentTextIcon },
     { name: 'Promotions', href: '/admin/promotions', icon: GiftIcon },
+    { name: 'Training', href: '/training', icon: PlayIcon },
+    { name: 'Downloads', href: '/downloads', icon: FolderArrowDownIcon },
     { name: 'Activities', href: '/admin/activities', icon: ClockIcon },
     { name: 'Backup', href: '/admin/backup', icon: CloudArrowDownIcon },
     { name: 'Settings', href: '/admin/settings', icon: CogIcon },

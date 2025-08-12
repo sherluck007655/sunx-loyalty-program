@@ -16,10 +16,20 @@
     "docker:up": "docker-compose up",
     "docker:down": "docker-compose down"
   },
-  "keywords": ["loyalty", "program", "sunx", "installers", "react", "nodejs"],
+  "keywords": [
+    "loyalty",
+    "program",
+    "sunx",
+    "installers",
+    "react",
+    "nodejs"
+  ],
   "author": "SunX Development Team",
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "mongodb": "^6.18.0"
   }
 }

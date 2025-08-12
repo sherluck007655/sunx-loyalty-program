@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three-Dots Menu Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .conversation {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background: #f9f9f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+        .conversation-info {
+            flex: 1;
+        }
+        .three-dots-menu {
+            position: relative;
+        }
+        .three-dots-btn {
+            background: none;
+            border: none;
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 50%;
+            color: #666;
+            font-size: 18px;
+            line-height: 1;
+        }
+        .three-dots-btn:hover {
+            background: #e5e5e5;
+            color: #333;
+        }
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 4px;
+            width: 200px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            overflow: hidden;
+        }
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            padding: 12px 16px;
+            border: none;
+            background: none;
+            text-align: left;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+            transition: background-color 0.2s;
+        }
+        .dropdown-item:hover {
+            background: #f5f5f5;
+        }
+        .dropdown-item.delete {
+            color: #dc3545;
+        }
+        .dropdown-item.delete:hover {
+            background: #ffeaea;
+        }
+        .dropdown-item svg {
+            width: 16px;
+            height: 16px;
+            margin-right: 12px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⋮ Three-Dots Menu Test</h1>
+        <p>This test demonstrates the new three-dots menu for chat conversations with options like delete, hide, and archive.</p>
+        
+        <div class="status" id="status">
+            Click the three-dots (⋮) button on any conversation to see the menu options.
+        </div>
+
+        <h3>Sample Conversations</h3>
+        <div id="conversations">
+            <!-- Sample conversations -->
+            <div class="conversation">
+                <div class="conversation-info">
+                    <h4>John Doe</h4>
+                    <p>Hello, I need help with my payment.</p>
+                    <small>2 hours ago</small>
+                </div>
+                <div class="three-dots-menu">
+                    <button class="three-dots-btn" onclick="toggleDropdown('conv1', event)">⋮</button>
+                    <div id="dropdown-conv1" class="dropdown-menu hidden">
+                        <button class="dropdown-item delete" onclick="deleteConversation('conv1', 'John Doe')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            Delete Conversation
+                        </button>
+                        <button class="dropdown-item" onclick="hideConversation('conv1', 'John Doe')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                            </svg>
+                            Hide Conversation
+                        </button>
+                        <button class="dropdown-item" onclick="archiveConversation('conv1', 'John Doe')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8l6 6 6-6"></path>
+                            </svg>
+                            Archive Conversation
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="conversation">
+                <div class="conversation-info">
+                    <h4>Jane Smith <span style="color: #2196f3;">(2 unread)</span></h4>
+                    <p>Thank you for the quick response!</p>
+                    <small>1 day ago</small>
+                </div>
+                <div class="three-dots-menu">
+                    <button class="three-dots-btn" onclick="toggleDropdown('conv2', event)">⋮</button>
+                    <div id="dropdown-conv2" class="dropdown-menu hidden">
+                        <button class="dropdown-item delete" onclick="deleteConversation('conv2', 'Jane Smith')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            Delete Conversation
+                        </button>
+                        <button class="dropdown-item" onclick="hideConversation('conv2', 'Jane Smith')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                            </svg>
+                            Hide Conversation
+                        </button>
+                        <button class="dropdown-item" onclick="archiveConversation('conv2', 'Jane Smith')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8l6 6 6-6"></path>
+                            </svg>
+                            Archive Conversation
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="conversation">
+                <div class="conversation-info">
+                    <h4>Ahmad Ali</h4>
+                    <p>I have a question about the installation process.</p>
+                    <small>3 days ago</small>
+                </div>
+                <div class="three-dots-menu">
+                    <button class="three-dots-btn" onclick="toggleDropdown('conv3', event)">⋮</button>
+                    <div id="dropdown-conv3" class="dropdown-menu hidden">
+                        <button class="dropdown-item delete" onclick="deleteConversation('conv3', 'Ahmad Ali')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            Delete Conversation
+                        </button>
+                        <button class="dropdown-item" onclick="hideConversation('conv3', 'Ahmad Ali')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                            </svg>
+                            Hide Conversation
+                        </button>
+                        <button class="dropdown-item" onclick="archiveConversation('conv3', 'Ahmad Ali')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8l6 6 6-6"></path>
+                            </svg>
+                            Archive Conversation
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentOpenDropdown = null;
+
+        function toggleDropdown(conversationId, event) {
+            event.stopPropagation();
+            
+            // Close any currently open dropdown
+            if (currentOpenDropdown && currentOpenDropdown !== conversationId) {
+                document.getElementById(`dropdown-${currentOpenDropdown}`).classList.add('hidden');
+            }
+            
+            const dropdown = document.getElementById(`dropdown-${conversationId}`);
+            const isHidden = dropdown.classList.contains('hidden');
+            
+            if (isHidden) {
+                dropdown.classList.remove('hidden');
+                currentOpenDropdown = conversationId;
+                document.getElementById('status').innerHTML = `✅ Opened menu for conversation ${conversationId}`;
+            } else {
+                dropdown.classList.add('hidden');
+                currentOpenDropdown = null;
+                document.getElementById('status').innerHTML = `❌ Closed menu for conversation ${conversationId}`;
+            }
+        }
+
+        function deleteConversation(conversationId, installerName) {
+            if (confirm(`Are you sure you want to delete the conversation with ${installerName}? This action cannot be undone.`)) {
+                document.getElementById('status').innerHTML = `🗑️ Deleted conversation with ${installerName}`;
+                // Hide the dropdown
+                document.getElementById(`dropdown-${conversationId}`).classList.add('hidden');
+                currentOpenDropdown = null;
+                
+                // In a real app, you would remove the conversation element
+                // For demo purposes, we'll just show the message
+            }
+        }
+
+        function hideConversation(conversationId, installerName) {
+            document.getElementById('status').innerHTML = `👁️‍🗨️ Hidden conversation with ${installerName} (feature coming soon)`;
+            document.getElementById(`dropdown-${conversationId}`).classList.add('hidden');
+            currentOpenDropdown = null;
+        }
+
+        function archiveConversation(conversationId, installerName) {
+            document.getElementById('status').innerHTML = `📦 Archived conversation with ${installerName} (feature coming soon)`;
+            document.getElementById(`dropdown-${conversationId}`).classList.add('hidden');
+            currentOpenDropdown = null;
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            if (currentOpenDropdown) {
+                const dropdown = document.getElementById(`dropdown-${currentOpenDropdown}`);
+                const button = event.target.closest('.three-dots-btn');
+                
+                if (!dropdown.contains(event.target) && !button) {
+                    dropdown.classList.add('hidden');
+                    currentOpenDropdown = null;
+                    document.getElementById('status').innerHTML = '📭 Closed dropdown (clicked outside)';
+                }
+            }
+        });
+    </script>
+</body>
+</html>

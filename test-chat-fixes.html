@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Fixes Test - Order & Delete</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .conversation {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background: #f9f9f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .conversation.new {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+        .conversation-info {
+            flex: 1;
+        }
+        .conversation-actions {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            background: #ff831f;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #e6741c;
+        }
+        button.delete {
+            background: #f44336;
+        }
+        button.delete:hover {
+            background: #d32f2f;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+        }
+        .error {
+            background: #ffebee;
+            border-color: #f44336;
+        }
+        .timestamp {
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💬 Chat Fixes Test - Order & Delete</h1>
+        <p>This test verifies that:</p>
+        <ul>
+            <li>✅ New conversations appear at the bottom (oldest first)</li>
+            <li>🗑️ Delete conversation functionality works</li>
+        </ul>
+        
+        <div class="status" id="status">
+            Loading chat service...
+        </div>
+
+        <div>
+            <button onclick="loadConversations()">🔄 Load Conversations</button>
+            <button onclick="addNewConversation()">➕ Add New Conversation</button>
+            <button onclick="sendMessageToFirst()">💬 Send Message to First</button>
+            <button onclick="clearAllConversations()">🗑️ Clear All</button>
+            <button onclick="resetToDefault()">🔄 Reset to Default</button>
+        </div>
+
+        <h3>Conversations (Ordered: Oldest → Newest)</h3>
+        <div id="conversations">
+            <!-- Conversations will be loaded here -->
+        </div>
+    </div>
+
+    <script type="module">
+        // Inline version of the ChatService for testing
+        class ChatService {
+            constructor() {
+                this.conversations = [];
+                this.messages = {};
+                this.storageKey = 'test_chat_conversations';
+                this.messagesKey = 'test_chat_messages';
+                this.loadFromStorage();
+            }
+
+            loadFromStorage() {
+                try {
+                    const stored = localStorage.getItem(this.storageKey);
+                    this.conversations = stored ? JSON.parse(stored) : [];
+                    
+                    const storedMessages = localStorage.getItem(this.messagesKey);
+                    this.messages = storedMessages ? JSON.parse(storedMessages) : {};
+                } catch (error) {
+                    console.warn('Failed to load from storage:', error);
+                    this.conversations = [];
+                    this.messages = {};
+                }
+            }
+
+            saveToStorage() {
+                try {
+                    localStorage.setItem(this.storageKey, JSON.stringify(this.conversations));
+                    localStorage.setItem(this.messagesKey, JSON.stringify(this.messages));
+                } catch (error) {
+                    console.warn('Failed to save to storage:', error);
+                }
+            }
+
+            async getConversations(userType = 'admin', userId = 'admin-1') {
+                // Work with a copy to avoid mutations
+                let conversations = [...this.conversations];
+
+                // Sort conversations by last message timestamp (oldest first, new conversations at bottom)
+                conversations.sort((a, b) => {
+                    const aTime = a.lastMessage ? new Date(a.lastMessage.timestamp) : new Date(a.createdAt);
+                    const bTime = b.lastMessage ? new Date(b.lastMessage.timestamp) : new Date(b.createdAt);
+                    return aTime - bTime; // Changed from bTime - aTime to aTime - bTime
+                });
+
+                return conversations;
+            }
+
+            async deleteConversation(chatId) {
+                // Remove from stored conversations
+                this.conversations = this.conversations.filter(conv => conv.id !== chatId);
+                
+                // Remove messages for this chat
+                delete this.messages[chatId];
+                
+                // Save to storage after deletion
+                this.saveToStorage();
+                console.log('Deleted conversation:', chatId);
+                
+                return true;
+            }
+
+            async sendMessage(chatId, message, type = 'text', attachments = [], currentUser = null) {
+                const newMessage = {
+                    id: `msg-${Date.now()}`,
+                    chatId,
+                    senderId: currentUser?.id || 'admin-1',
+                    senderName: currentUser?.name || 'Admin',
+                    senderType: currentUser?.userType || 'admin',
+                    message,
+                    type,
+                    attachments,
+                    timestamp: new Date().toISOString(),
+                    status: 'sent'
+                };
+
+                // Add message to messages array
+                if (!this.messages[chatId]) {
+                    this.messages[chatId] = [];
+                }
+                this.messages[chatId].push(newMessage);
+
+                // Update conversation's last message
+                const conversation = this.conversations.find(conv => conv.id === chatId);
+                if (conversation) {
+                    conversation.lastMessage = {
+                        message,
+                        timestamp: newMessage.timestamp,
+                        senderId: newMessage.senderId
+                    };
+
+                    // Sort all conversations by last message timestamp (oldest first, new at bottom)
+                    this.conversations.sort((a, b) => {
+                        const aTime = a.lastMessage ? new Date(a.lastMessage.timestamp) : new Date(a.createdAt);
+                        const bTime = b.lastMessage ? new Date(b.lastMessage.timestamp) : new Date(b.createdAt);
+                        return aTime - bTime; // Changed from bTime - aTime to aTime - bTime
+                    });
+
+                    this.saveToStorage();
+                }
+
+                return newMessage;
+            }
+
+            createDefaultConversations() {
+                const now = new Date();
+                this.conversations = [
+                    {
+                        id: 'chat-demo-1',
+                        participants: [
+                            { id: 'installer-1', name: 'John Doe', type: 'installer' },
+                            { id: 'admin-1', name: 'Admin Support', type: 'admin' }
+                        ],
+                        lastMessage: {
+                            message: 'Hello, I need help with my payment.',
+                            timestamp: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+                            senderId: 'installer-1'
+                        },
+                        unreadCount: 1,
+                        status: 'active',
+                        createdAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString()
+                    },
+                    {
+                        id: 'chat-demo-2',
+                        participants: [
+                            { id: 'installer-2', name: 'Jane Smith', type: 'installer' },
+                            { id: 'admin-1', name: 'Admin Support', type: 'admin' }
+                        ],
+                        lastMessage: {
+                            message: 'Thank you for the quick response!',
+                            timestamp: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+                            senderId: 'installer-2'
+                        },
+                        unreadCount: 0,
+                        status: 'active',
+                        createdAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString()
+                    }
+                ];
+                this.saveToStorage();
+            }
+
+            clearAllConversations() {
+                this.conversations = [];
+                this.messages = {};
+                this.saveToStorage();
+            }
+        }
+
+        // Initialize service
+        const chatService = new ChatService();
+
+        // Global functions for buttons
+        window.loadConversations = async function() {
+            try {
+                const conversations = await chatService.getConversations();
+                
+                const container = document.getElementById('conversations');
+                container.innerHTML = '';
+                
+                if (conversations.length === 0) {
+                    container.innerHTML = '<p>No conversations found. Click "Reset to Default" to add some test conversations.</p>';
+                    document.getElementById('status').innerHTML = '📭 No conversations found';
+                    return;
+                }
+                
+                conversations.forEach((conversation, index) => {
+                    const installer = conversation.participants.find(p => p.type === 'installer');
+                    const div = document.createElement('div');
+                    div.className = `conversation ${index === conversations.length - 1 ? 'new' : ''}`;
+                    div.innerHTML = `
+                        <div class="conversation-info">
+                            <h4>${installer?.name || 'Unknown'} ${conversation.unreadCount > 0 ? `(${conversation.unreadCount} unread)` : ''}</h4>
+                            <p><strong>Last:</strong> ${conversation.lastMessage?.message || 'No messages'}</p>
+                            <div class="timestamp">
+                                Created: ${new Date(conversation.createdAt).toLocaleString()}<br>
+                                Last Message: ${conversation.lastMessage ? new Date(conversation.lastMessage.timestamp).toLocaleString() : 'N/A'}
+                            </div>
+                        </div>
+                        <div class="conversation-actions">
+                            <button onclick="sendMessageToConversation('${conversation.id}', '${installer?.name}')">💬 Send Message</button>
+                            <button class="delete" onclick="deleteConversation('${conversation.id}', '${installer?.name}')">🗑️ Delete</button>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+                
+                document.getElementById('status').innerHTML = `✅ Loaded ${conversations.length} conversations (ordered oldest → newest)`;
+            } catch (error) {
+                document.getElementById('status').innerHTML = `❌ Error loading conversations: ${error.message}`;
+                document.getElementById('status').className = 'status error';
+            }
+        };
+
+        window.addNewConversation = function() {
+            const now = new Date();
+            const newConversation = {
+                id: `chat-${Date.now()}`,
+                participants: [
+                    { id: `installer-${Date.now()}`, name: `New User ${Date.now().toString().slice(-4)}`, type: 'installer' },
+                    { id: 'admin-1', name: 'Admin Support', type: 'admin' }
+                ],
+                lastMessage: {
+                    message: 'Hi, I just joined and need help!',
+                    timestamp: now.toISOString(),
+                    senderId: `installer-${Date.now()}`
+                },
+                unreadCount: 1,
+                status: 'active',
+                createdAt: now.toISOString()
+            };
+            
+            chatService.conversations.push(newConversation);
+            chatService.saveToStorage();
+            document.getElementById('status').innerHTML = '✅ New conversation added (should appear at bottom)';
+            loadConversations();
+        };
+
+        window.sendMessageToFirst = async function() {
+            const conversations = await chatService.getConversations();
+            if (conversations.length > 0) {
+                await chatService.sendMessage(conversations[0].id, `Test message sent at ${new Date().toLocaleTimeString()}`);
+                document.getElementById('status').innerHTML = '✅ Message sent to first conversation (should move to bottom)';
+                loadConversations();
+            } else {
+                document.getElementById('status').innerHTML = '❌ No conversations to send message to';
+            }
+        };
+
+        window.sendMessageToConversation = async function(chatId, installerName) {
+            await chatService.sendMessage(chatId, `Reply to ${installerName} at ${new Date().toLocaleTimeString()}`);
+            document.getElementById('status').innerHTML = `✅ Message sent to ${installerName} (conversation should move to bottom)`;
+            loadConversations();
+        };
+
+        window.deleteConversation = async function(chatId, installerName) {
+            if (confirm(`Delete conversation with ${installerName}?`)) {
+                await chatService.deleteConversation(chatId);
+                document.getElementById('status').innerHTML = `✅ Conversation with ${installerName} deleted`;
+                loadConversations();
+            }
+        };
+
+        window.clearAllConversations = function() {
+            if (confirm('Clear all conversations?')) {
+                chatService.clearAllConversations();
+                document.getElementById('status').innerHTML = '🗑️ All conversations cleared';
+                loadConversations();
+            }
+        };
+
+        window.resetToDefault = function() {
+            chatService.createDefaultConversations();
+            document.getElementById('status').innerHTML = '🔄 Reset to default conversations';
+            loadConversations();
+        };
+
+        // Load conversations on page load
+        loadConversations();
+    </script>
+</body>
+</html>

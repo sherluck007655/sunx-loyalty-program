@@ -1,0 +1,25 @@
+{
+  "name": "sunx-loyalty-program",
+  "version": "1.0.0",
+  "description": "SunX Loyalty Program Application for Installers",
+  "main": "index.js",
+  "scripts": {
+    "start": "node start-app.js",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd backend && npm run dev",
+    "client": "cd frontend && npm start",
+    "build": "cd frontend && npm run build",
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "test:basic": "cd backend && npm run test:basic",
+    "seed": "cd backend && npm run db:seed",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up",
+    "docker:down": "docker-compose down"
+  },
+  "keywords": ["loyalty", "program", "sunx", "installers", "react", "nodejs"],
+  "author": "SunX Development Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

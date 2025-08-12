@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: sunx-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: sunx123secure
+      MONGO_INITDB_DATABASE: sunx_loyalty
+    volumes:
+      - mongodb_data:/data/db
+      - ./backups:/backups
+    ports:
+      - "27017:27017"
+    networks:
+      - sunx-network
+    command: mongod --auth
+
+  # Backend API
+  backend:
+    image: sherluck007/sunx-loyalty-backend:latest
+    container_name: sunx-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb://admin:sunx123secure@mongodb:27017/sunx_loyalty?authSource=admin
+      JWT_SECRET: sunx-jwt-secret-key-2024-secure
+      CORS_ORIGIN: "https://loyalty.sunxpv.com,http://loyalty.sunxpv.com,https://www.loyalty.sunxpv.com"
+      # Prevent automatic data seeding/cleaning
+      SKIP_SEED: "true"
+      PRESERVE_DATA: "true"
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongodb
+    networks:
+      - sunx-network
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend React App
+  frontend:
+    image: sherluck007/sunx-loyalty-frontend:latest
+    container_name: sunx-frontend
+    restart: unless-stopped
+    environment:
+      REACT_APP_API_URL: http://localhost:5000
+      REACT_APP_ENV: production
+    ports:
+      - "80:3000"
+    depends_on:
+      - backend
+    networks:
+      - sunx-network
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  sunx-network:
+    driver: bridge

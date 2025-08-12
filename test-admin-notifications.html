@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Notification Persistence Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .notification {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .notification.unread {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+        .notification.read {
+            background: #f5f5f5;
+            border-color: #ccc;
+        }
+        button {
+            background: #ff831f;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #e6741c;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+        }
+        .error {
+            background: #ffebee;
+            border-color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔔 Admin Notification Persistence Test</h1>
+        <p>This test verifies that admin notifications persist across page refreshes.</p>
+        
+        <div class="status" id="status">
+            Loading admin notification service...
+        </div>
+
+        <div>
+            <button onclick="loadNotifications()">🔄 Load Notifications</button>
+            <button onclick="addTestNotification()">➕ Add Test Notification</button>
+            <button onclick="markAllAsRead()">✅ Mark All Read</button>
+            <button onclick="resetNotifications()">🔄 Reset to Initial</button>
+            <button onclick="clearAllNotifications()">🗑️ Clear All</button>
+            <button onclick="refreshPage()">🔄 Refresh Page</button>
+        </div>
+
+        <h3>Notifications (<span id="unreadCount">0</span> unread)</h3>
+        <div id="notifications">
+            <!-- Notifications will be loaded here -->
+        </div>
+    </div>
+
+    <script type="module">
+        // Inline version of the AdminNotificationService for testing
+        const initialAdminNotifications = [
+            {
+                id: 'admin-notif-2',
+                recipientId: 'admin',
+                recipientType: 'admin',
+                type: 'payment_request',
+                title: 'New Payment Request',
+                message: 'Test User submitted a payment request for PKR 5,000',
+                data: {
+                    paymentId: 'payment-demo-3',
+                    amount: 5000,
+                    installerName: 'Test User',
+                    fromInstaller: true
+                },
+                read: false,
+                createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+            },
+            {
+                id: 'admin-notif-3',
+                recipientId: 'admin',
+                recipientType: 'admin',
+                type: 'serial_submission',
+                title: 'New Serial Number Submitted',
+                message: 'John Doe submitted serial number SX987654321',
+                data: {
+                    serialNumber: 'SX987654321',
+                    installerName: 'John Doe',
+                    inverterModel: 'SunX Pro 5kW',
+                    fromInstaller: true
+                },
+                read: false,
+                createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
+            },
+            {
+                id: 'admin-notif-4',
+                recipientId: 'admin',
+                recipientType: 'admin',
+                type: 'new_installer',
+                title: 'New Installer Registration',
+                message: 'Ahmad Ali registered as a new installer',
+                data: {
+                    installerId: 'installer-3',
+                    installerName: 'Ahmad Ali',
+                    city: 'Lahore',
+                    fromInstaller: true
+                },
+                read: true,
+                createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
+            }
+        ];
+
+        const persistentStorage = {
+            save: (key, data) => {
+                try {
+                    localStorage.setItem(key, JSON.stringify(data));
+                } catch (error) {
+                    console.warn('Failed to save to localStorage:', error);
+                }
+            },
+            load: (key, defaultValue = []) => {
+                try {
+                    const stored = localStorage.getItem(key);
+                    return stored ? JSON.parse(stored) : defaultValue;
+                } catch (error) {
+                    console.warn('Failed to load from localStorage:', error);
+                    return defaultValue;
+                }
+            }
+        };
+
+        class AdminNotificationService {
+            constructor() {
+                this.storageKey = 'sunx_admin_notifications';
+                this.initializeNotifications();
+            }
+
+            initializeNotifications() {
+                this.notifications = persistentStorage.load(this.storageKey, initialAdminNotifications);
+            }
+
+            saveToStorage() {
+                persistentStorage.save(this.storageKey, this.notifications);
+            }
+
+            async getNotifications() {
+                return this.notifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            }
+
+            addNotification(notification) {
+                const newNotification = {
+                    id: `admin-notif-${Date.now()}`,
+                    recipientId: 'admin',
+                    recipientType: 'admin',
+                    read: false,
+                    createdAt: new Date().toISOString(),
+                    ...notification
+                };
+                
+                this.notifications.unshift(newNotification);
+                this.saveToStorage();
+                return newNotification;
+            }
+
+            async markAsRead(notificationId) {
+                const notification = this.notifications.find(n => n.id === notificationId);
+                if (notification) {
+                    notification.read = true;
+                    this.saveToStorage();
+                }
+                return true;
+            }
+
+            async markAllAsRead() {
+                this.notifications.forEach(notification => {
+                    notification.read = true;
+                });
+                this.saveToStorage();
+                return true;
+            }
+
+            getUnreadCount() {
+                return this.notifications.filter(n => !n.read).length;
+            }
+
+            resetNotifications() {
+                this.notifications = [...initialAdminNotifications];
+                this.saveToStorage();
+            }
+
+            clearAllNotifications() {
+                this.notifications = [];
+                this.saveToStorage();
+            }
+        }
+
+        // Initialize service
+        const adminNotificationService = new AdminNotificationService();
+
+        // Global functions for buttons
+        window.loadNotifications = async function() {
+            try {
+                const notifications = await adminNotificationService.getNotifications();
+                const unreadCount = adminNotificationService.getUnreadCount();
+                
+                document.getElementById('unreadCount').textContent = unreadCount;
+                
+                const container = document.getElementById('notifications');
+                container.innerHTML = '';
+                
+                if (notifications.length === 0) {
+                    container.innerHTML = '<p>No notifications found.</p>';
+                    return;
+                }
+                
+                notifications.forEach(notification => {
+                    const div = document.createElement('div');
+                    div.className = `notification ${notification.read ? 'read' : 'unread'}`;
+                    div.innerHTML = `
+                        <h4>${notification.title} ${notification.read ? '' : '🔴'}</h4>
+                        <p>${notification.message}</p>
+                        <small>Type: ${notification.type} | Created: ${new Date(notification.createdAt).toLocaleString()}</small>
+                        ${!notification.read ? `<br><button onclick="markAsRead('${notification.id}')">Mark as Read</button>` : ''}
+                    `;
+                    container.appendChild(div);
+                });
+                
+                document.getElementById('status').innerHTML = `✅ Loaded ${notifications.length} notifications (${unreadCount} unread)`;
+            } catch (error) {
+                document.getElementById('status').innerHTML = `❌ Error loading notifications: ${error.message}`;
+                document.getElementById('status').className = 'status error';
+            }
+        };
+
+        window.addTestNotification = function() {
+            const testNotification = {
+                type: 'test',
+                title: 'Test Notification',
+                message: `Test notification created at ${new Date().toLocaleString()}`,
+                data: { test: true }
+            };
+            
+            adminNotificationService.addNotification(testNotification);
+            document.getElementById('status').innerHTML = '✅ Test notification added';
+            loadNotifications();
+        };
+
+        window.markAsRead = async function(notificationId) {
+            await adminNotificationService.markAsRead(notificationId);
+            document.getElementById('status').innerHTML = '✅ Notification marked as read';
+            loadNotifications();
+        };
+
+        window.markAllAsRead = async function() {
+            await adminNotificationService.markAllAsRead();
+            document.getElementById('status').innerHTML = '✅ All notifications marked as read';
+            loadNotifications();
+        };
+
+        window.resetNotifications = function() {
+            adminNotificationService.resetNotifications();
+            document.getElementById('status').innerHTML = '🔄 Notifications reset to initial state';
+            loadNotifications();
+        };
+
+        window.clearAllNotifications = function() {
+            adminNotificationService.clearAllNotifications();
+            document.getElementById('status').innerHTML = '🗑️ All notifications cleared';
+            loadNotifications();
+        };
+
+        window.refreshPage = function() {
+            window.location.reload();
+        };
+
+        // Load notifications on page load
+        loadNotifications();
+    </script>
+</body>
+</html>

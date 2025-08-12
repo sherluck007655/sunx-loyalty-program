@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New User Chat Loading Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .user-info {
+            background: #e3f2fd;
+            border-color: #2196f3;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        button {
+            background: #ff831f;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #e6741c;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+        }
+        .error {
+            background: #ffebee;
+            border-color: #f44336;
+        }
+        .conversation {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            background: white;
+        }
+        .log {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🆕 New User Chat Loading Test</h1>
+        <p>This test simulates the chat loading process for newly created users to verify the "Failed to load chat" error is fixed.</p>
+        
+        <div class="status" id="status">
+            Ready to test chat loading for new users...
+        </div>
+
+        <div class="test-section">
+            <h3>Test Scenarios</h3>
+            <button onclick="testExistingUser()">🧑‍💼 Test Existing User</button>
+            <button onclick="testNewUser()">🆕 Test New User</button>
+            <button onclick="testInvalidUser()">❌ Test Invalid User</button>
+            <button onclick="testCreateConversation()">💬 Test Create Conversation</button>
+            <button onclick="clearStorage()">🗑️ Clear Storage</button>
+        </div>
+
+        <div class="user-info" id="currentUser">
+            No user selected
+        </div>
+
+        <div class="test-section">
+            <h3>Conversations</h3>
+            <div id="conversations">
+                No conversations loaded
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>Debug Log</h3>
+            <div class="log" id="debugLog">
+                Test log will appear here...
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Inline ChatService for testing (fixed version)
+        class ChatService {
+            constructor() {
+                this.conversations = [];
+                this.messages = {};
+                this.storageKey = 'test_chat_conversations';
+                this.messagesKey = 'test_chat_messages';
+                this.loadFromStorage();
+            }
+
+            loadFromStorage() {
+                try {
+                    const stored = localStorage.getItem(this.storageKey);
+                    this.conversations = stored ? JSON.parse(stored) : [];
+                    
+                    const storedMessages = localStorage.getItem(this.messagesKey);
+                    this.messages = storedMessages ? JSON.parse(storedMessages) : {};
+                    
+                    this.log(`Loaded ${this.conversations.length} conversations from storage`);
+                } catch (error) {
+                    this.log(`Error loading from storage: ${error.message}`, 'error');
+                    this.conversations = [];
+                    this.messages = {};
+                }
+            }
+
+            saveToStorage() {
+                try {
+                    localStorage.setItem(this.storageKey, JSON.stringify(this.conversations));
+                    localStorage.setItem(this.messagesKey, JSON.stringify(this.messages));
+                    this.log('Saved to storage successfully');
+                } catch (error) {
+                    this.log(`Error saving to storage: ${error.message}`, 'error');
+                }
+            }
+
+            async getConversations(userType, userId) {
+                try {
+                    this.log(`getConversations called with userType: ${userType}, userId: ${userId}`);
+                    
+                    // Validate input parameters (FIXED)
+                    if (!userType || !userId) {
+                        this.log('Invalid parameters provided', 'error');
+                        return [];
+                    }
+
+                    // Get stored conversations or create default ones if empty
+                    if (this.conversations.length === 0) {
+                        this.log('No conversations found, creating default ones');
+                        const defaultConversations = [
+                            {
+                                id: 'chat-demo-1',
+                                participants: [
+                                    { id: 'installer-1', name: 'John Doe', type: 'installer' },
+                                    { id: 'admin-1', name: 'Admin Support', type: 'admin' }
+                                ],
+                                lastMessage: {
+                                    message: 'Thank you for your help with the payment issue.',
+                                    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+                                    senderId: 'installer-1'
+                                },
+                                unreadCount: userType === 'admin' ? 2 : 0,
+                                status: 'active',
+                                createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+                            }
+                        ];
+                        this.conversations = defaultConversations;
+                        this.saveToStorage();
+                    }
+
+                    let conversations = [...this.conversations];
+
+                    // Sort conversations (oldest first, new at bottom)
+                    conversations.sort((a, b) => {
+                        const aTime = a.lastMessage ? new Date(a.lastMessage.timestamp) : new Date(a.createdAt);
+                        const bTime = b.lastMessage ? new Date(b.lastMessage.timestamp) : new Date(b.createdAt);
+                        return aTime - bTime;
+                    });
+
+                    // Filter conversations based on user type
+                    if (userType === 'installer') {
+                        const filtered = conversations.filter(conv =>
+                            conv.participants.some(p => p.id === userId && p.type === 'installer')
+                        );
+                        this.log(`Filtered ${filtered.length} conversations for installer ${userId}`);
+                        return filtered;
+                    }
+
+                    this.log(`Returning ${conversations.length} conversations for admin`);
+                    return conversations;
+                } catch (error) {
+                    this.log(`Error fetching conversations: ${error.message}`, 'error');
+                    throw error;
+                }
+            }
+
+            async createConversation(participantId, participantType, currentUser = null) {
+                try {
+                    this.log(`createConversation called for user: ${currentUser?.name}`);
+                    
+                    // Check if conversation already exists with this installer (FIXED)
+                    const existingConv = this.conversations.find(conv =>
+                        conv.participants.some(p => p.id === currentUser?.id && p.type === 'installer')
+                    );
+
+                    if (existingConv) {
+                        this.log('Found existing conversation, returning it');
+                        return existingConv;
+                    }
+
+                    const chatId = `chat-${Date.now()}`;
+
+                    const conversation = {
+                        id: chatId,
+                        participants: [
+                            { id: currentUser?.id || 'current-user', name: currentUser?.name || 'Current User', type: currentUser?.userType || 'installer' },
+                            { id: participantId, name: 'Admin Support', type: participantType }
+                        ],
+                        lastMessage: null,
+                        unreadCount: 0,
+                        status: 'active',
+                        createdAt: new Date().toISOString()
+                    };
+
+                    // Add conversation to stored conversations (FIXED)
+                    this.conversations.unshift(conversation);
+                    this.saveToStorage();
+
+                    this.log(`Created new conversation: ${conversation.id} for user: ${currentUser?.name}`);
+                    return conversation;
+                } catch (error) {
+                    this.log(`Error creating conversation: ${error.message}`, 'error');
+                    throw error;
+                }
+            }
+
+            async getMessages(chatId) {
+                const messages = this.messages[chatId] || [];
+                this.log(`Retrieved ${messages.length} messages for chat ${chatId}`);
+                return { messages };
+            }
+
+            log(message, type = 'info') {
+                const timestamp = new Date().toLocaleTimeString();
+                const logElement = document.getElementById('debugLog');
+                const color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'black';
+                logElement.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+                logElement.scrollTop = logElement.scrollHeight;
+                console.log(`[ChatService] ${message}`);
+            }
+
+            clearStorage() {
+                localStorage.removeItem(this.storageKey);
+                localStorage.removeItem(this.messagesKey);
+                this.conversations = [];
+                this.messages = {};
+                this.log('Storage cleared');
+            }
+        }
+
+        const chatService = new ChatService();
+
+        // Test functions
+        window.testExistingUser = async function() {
+            const user = { id: 'installer-1', name: 'John Doe' };
+            await testChatLoading(user, 'installer', 'Existing User');
+        };
+
+        window.testNewUser = async function() {
+            const user = { id: `installer-${Date.now()}`, name: 'New User' };
+            await testChatLoading(user, 'installer', 'New User');
+        };
+
+        window.testInvalidUser = async function() {
+            const user = null;
+            await testChatLoading(user, 'installer', 'Invalid User');
+        };
+
+        window.testCreateConversation = async function() {
+            const user = { id: `installer-${Date.now()}`, name: 'Test User for Conversation' };
+            document.getElementById('currentUser').innerHTML = `Testing conversation creation for: ${user.name} (${user.id})`;
+            
+            try {
+                const conversation = await chatService.createConversation('admin-1', 'admin', user);
+                document.getElementById('status').innerHTML = `✅ Successfully created conversation: ${conversation.id}`;
+                displayConversations([conversation]);
+            } catch (error) {
+                document.getElementById('status').innerHTML = `❌ Failed to create conversation: ${error.message}`;
+                document.getElementById('status').className = 'status error';
+            }
+        };
+
+        async function testChatLoading(user, userType, testName) {
+            document.getElementById('currentUser').innerHTML = user ? 
+                `Testing: ${testName} - ${user.name} (${user.id})` : 
+                `Testing: ${testName} - No user data`;
+            
+            try {
+                const conversations = await chatService.getConversations(userType, user?.id);
+                
+                if (conversations.length === 0) {
+                    document.getElementById('status').innerHTML = `✅ ${testName}: No conversations found (expected for new users)`;
+                } else {
+                    document.getElementById('status').innerHTML = `✅ ${testName}: Loaded ${conversations.length} conversations successfully`;
+                }
+                
+                displayConversations(conversations);
+                
+            } catch (error) {
+                document.getElementById('status').innerHTML = `❌ ${testName}: Failed to load chat - ${error.message}`;
+                document.getElementById('status').className = 'status error';
+                chatService.log(`Test failed: ${error.message}`, 'error');
+            }
+        }
+
+        function displayConversations(conversations) {
+            const container = document.getElementById('conversations');
+            
+            if (conversations.length === 0) {
+                container.innerHTML = '<div class="conversation">No conversations found (this is normal for new users)</div>';
+                return;
+            }
+            
+            container.innerHTML = conversations.map(conv => {
+                const installer = conv.participants.find(p => p.type === 'installer');
+                return `
+                    <div class="conversation">
+                        <strong>${installer?.name || 'Unknown'}</strong><br>
+                        <small>ID: ${conv.id}</small><br>
+                        <small>Created: ${new Date(conv.createdAt).toLocaleString()}</small><br>
+                        ${conv.lastMessage ? `<em>"${conv.lastMessage.message}"</em>` : '<em>No messages</em>'}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.clearStorage = function() {
+            chatService.clearStorage();
+            document.getElementById('status').innerHTML = '🗑️ Storage cleared';
+            document.getElementById('conversations').innerHTML = 'No conversations loaded';
+            document.getElementById('currentUser').innerHTML = 'No user selected';
+        };
+
+        // Initialize
+        chatService.log('Chat service initialized for testing');
+    </script>
+</body>
+</html>

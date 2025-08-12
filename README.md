@@ -1,4 +1,8 @@
-# 🌞 SunX Loyalty Program
+# 🌞 SunX Loyalty Program V2.0
+
+[![Build Status](https://github.com/sherluck007655/sunx-loyalty-program/workflows/Build%20and%20Push%20Docker%20Images/badge.svg)](https://github.com/sherluck007655/sunx-loyalty-program/actions)
+[![Docker Pulls](https://img.shields.io/docker/pulls/sherluck007/sunx-loyalty-frontend)](https://hub.docker.com/r/sherluck007/sunx-loyalty-frontend)
+[![Live Demo](https://img.shields.io/badge/demo-live-green)](https://loyalty.sunxpv.com)
 
 A comprehensive loyalty program web application for solar installers built with React.js, Node.js, Express, and MongoDB. This application rewards installers for their solar inverter installations with a points-based system, milestone tracking, and promotional campaigns.
 

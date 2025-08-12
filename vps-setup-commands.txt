@@ -1,0 +1,58 @@
+# VPS Setup Commands for SunX Loyalty Program
+# Run these commands on your VPS server
+
+# 1. Update system
+sudo apt update && sudo apt upgrade -y
+
+# 2. Install Docker and Docker Compose (if not already installed)
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+
+# Install Docker Compose
+sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+
+# 3. Create application directory
+sudo mkdir -p /opt/sunx-loyalty
+cd /opt/sunx-loyalty
+
+# 4. Download deployment files from GitHub
+wget https://raw.githubusercontent.com/sherluck007655/sunx-loyalty-program/main/docker-compose.hub.yml
+wget https://raw.githubusercontent.com/sherluck007655/sunx-loyalty-program/main/deploy-new-version.sh
+chmod +x deploy-new-version.sh
+
+# 5. Create environment file
+sudo tee .env << 'EOF'
+NODE_ENV=production
+MONGODB_URI=mongodb://mongodb:27017/loyalty
+JWT_SECRET=your-super-secure-jwt-secret-change-this
+JWT_EXPIRE=7d
+PORT=5000
+ADMIN_EMAIL=admin@sunxpv.com
+ADMIN_PASSWORD=admin123
+REACT_APP_API_URL=https://loyalty.sunxpv.com/api
+EOF
+
+# 6. Start the application
+sudo docker-compose -f docker-compose.hub.yml up -d
+
+# 7. Check if everything is running
+sudo docker ps
+sudo docker logs sunx-loyalty-backend
+sudo docker logs sunx-loyalty-frontend
+
+# 8. Test the application
+curl http://localhost:5000/health
+curl http://localhost:3000
+
+# 9. Set up nginx (if not already configured)
+# The nginx configuration should already be working from previous setup
+
+# 10. Create deployment alias for easy updates
+echo 'alias deploy-loyalty="cd /opt/sunx-loyalty && ./deploy-new-version.sh"' >> ~/.bashrc
+source ~/.bashrc
+
+echo "✅ VPS setup complete!"
+echo "🌐 Application should be available at: https://loyalty.sunxpv.com"
+echo "🚀 To deploy updates, run: deploy-loyalty"

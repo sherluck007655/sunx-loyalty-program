@@ -1,0 +1,28 @@
+# GitHub Setup Commands
+# Run these commands after creating the GitHub repository
+
+# 1. Add GitHub remote (replace with your actual repository URL)
+git remote add origin https://github.com/sherluck007655/sunx-loyalty-program.git
+
+# 2. Push main branch to GitHub
+git push -u origin main
+
+# 3. Push develop branch to GitHub
+git checkout develop
+git push -u origin develop
+
+# 4. Go back to main branch
+git checkout main
+
+# 5. Verify everything is set up
+git remote -v
+git branch -a
+
+# After this, you'll need to:
+# 1. Set up Docker Hub secrets in GitHub
+# 2. Configure automated builds
+# 3. Test the deployment workflow
+
+echo "✅ GitHub repository setup complete!"
+echo "🔗 Repository: https://github.com/sherluck007655/sunx-loyalty-program"
+echo "🚀 Next: Set up Docker Hub integration"

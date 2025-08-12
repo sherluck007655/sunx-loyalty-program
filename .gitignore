@@ -96,3 +96,7 @@ Thumbs.db
 
 # Docker
 docker-compose.override.yml
+
+# Large files (use Git LFS for these)
+*.zip
+mobile_apps.zip

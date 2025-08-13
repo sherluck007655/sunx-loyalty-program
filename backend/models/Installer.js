@@ -128,10 +128,12 @@ installerSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Method to update points and check eligibility
-installerSchema.methods.updateProgress = function() {
-  this.totalPoints = this.totalInverters * 10; // 10 points per inverter
-  this.isEligibleForPayment = this.totalInverters >= 10;
+// Method to update points and check eligibility (updated for new system)
+installerSchema.methods.updateProgress = async function() {
+  // Get actual points from SerialNumber collection
+  const SerialNumber = require('./SerialNumber');
+  this.totalPoints = await SerialNumber.getInstallerTotalPoints(this._id);
+  this.isEligibleForPayment = this.totalPoints >= 1000; // 1000 points minimum
   return this.save();
 };
 

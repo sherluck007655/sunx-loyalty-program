@@ -68,9 +68,12 @@ router.post('/add', protectInstaller, validateSerialNumber, async (req, res) => 
       serialNumber,
       installationDate,
       location,
+      customerName,
+      customerPhone,
+      notes,
+      // Legacy fields for backward compatibility
       inverterModel,
-      capacity,
-      notes
+      capacity
     } = req.body;
 
     // Check if serial number already exists
@@ -83,32 +86,42 @@ router.post('/add', protectInstaller, validateSerialNumber, async (req, res) => 
       });
     }
 
-    // Check if serial number is in the valid/approved list
-    const isValidSerial = await ValidSerial.isSerialValid(serialNumber);
-    if (!isValidSerial) {
+    // Get serial info with product details
+    const validSerialInfo = await ValidSerial.getSerialInfo(serialNumber);
+    if (!validSerialInfo) {
       return res.status(400).json({
         success: false,
-        message: 'Serial number is not in the approved list'
+        message: 'Serial number is not in the approved list or already used'
       });
     }
 
-    // Create new serial number entry
+    // Create new serial number entry with product info
     const newSerial = await SerialNumber.create({
       serialNumber: serialNumber.toUpperCase(),
       installer: req.installer._id,
+      product: validSerialInfo.product._id,
+      pointsEarned: validSerialInfo.product.points,
       installationDate,
       location,
+      customerName,
+      customerPhone,
+      notes,
+      // Legacy fields for backward compatibility
       inverterModel,
-      capacity,
-      notes
+      capacity
     });
 
-    // Mark the valid serial as used
-    await ValidSerial.markAsUsed(serialNumber, req.installer._id);
+    // Mark the valid serial as used and get updated info
+    const usedSerial = await ValidSerial.markAsUsed(serialNumber, req.installer._id);
 
-    // Update installer's progress (calculate actual count from database)
+    // Update installer's progress (calculate actual count and points from database)
     const installer = await Installer.findById(req.installer._id);
     installer.totalInverters = await SerialNumber.countDocuments({ installer: req.installer._id });
+
+    // Calculate total points from all registered serials
+    const totalPoints = await SerialNumber.getInstallerTotalPoints(req.installer._id);
+    installer.totalPoints = totalPoints;
+
     await installer.updateProgress();
 
     // Check if installer reached milestone (10 inverters)
@@ -156,16 +169,23 @@ router.post('/add', protectInstaller, validateSerialNumber, async (req, res) => 
       }
     }
 
+    // Populate the new serial with product info for response
+    const populatedSerial = await SerialNumber.findById(newSerial._id)
+      .populate('product', 'name model type points');
+
     res.status(201).json({
       success: true,
       message: 'Serial number added successfully',
       data: {
-        serial: newSerial.getDisplayInfo(),
+        serial: {
+          ...newSerial.getDisplayInfo(),
+          product: validSerialInfo.product
+        },
         installer: {
           totalInverters: installer.totalInverters,
           totalPoints: installer.totalPoints,
-          isEligibleForPayment: installer.isEligibleForPayment,
-          progressPercentage: Math.min((installer.totalInverters / 10) * 100, 100)
+          isEligibleForPayment: installer.totalPoints >= 1000, // Updated to use points
+          progressPercentage: Math.min((installer.totalPoints / 1000) * 100, 100) // Progress based on points
         }
       }
     });
@@ -372,26 +392,34 @@ router.get('/validate/:serialNumber', protectInstaller, async (req, res) => {
       });
     }
 
-    // Check if serial number is in the valid/approved list
-    const isValidSerial = await ValidSerial.isSerialValid(serialNumber);
-    if (!isValidSerial) {
+    // Check if serial number is in the valid/approved list and get product info
+    const validSerialInfo = await ValidSerial.getSerialInfo(serialNumber);
+    if (!validSerialInfo) {
       return res.json({
         success: true,
         data: {
           isValid: false,
-          message: 'Serial number is not in the approved list',
+          message: 'Serial number is not in the approved list or already used',
           serialNumber: serialNumber.toUpperCase()
         }
       });
     }
 
-    // Serial number is valid, approved, and available
+    // Serial number is valid, approved, and available - include product info
     res.json({
       success: true,
       data: {
         isValid: true,
         message: 'Serial number is valid and available',
-        serialNumber: serialNumber.toUpperCase()
+        serialNumber: serialNumber.toUpperCase(),
+        product: {
+          id: validSerialInfo.product._id,
+          name: validSerialInfo.product.name,
+          model: validSerialInfo.product.model,
+          type: validSerialInfo.product.type,
+          points: validSerialInfo.product.points,
+          specifications: validSerialInfo.product.specifications
+        }
       }
     });
   } catch (error) {

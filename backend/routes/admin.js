@@ -1012,14 +1012,33 @@ router.post('/valid-serials', protectAdmin, async (req, res) => {
       });
     }
 
+    // Get product info if provided, otherwise try to auto-detect
+    let productId = req.body.productId;
+
+    if (!productId) {
+      // Try to auto-detect product by serial number pattern
+      const Product = require('../models/Product');
+      const detectedProduct = await Product.findBySerialNumber(serialNumber);
+      if (detectedProduct) {
+        productId = detectedProduct._id;
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Product not specified and could not be auto-detected. Please specify the product for this serial number.'
+        });
+      }
+    }
+
     const validSerial = await ValidSerial.create({
       serialNumber: serialNumber.toUpperCase(),
+      product: productId,
       addedBy: req.admin._id,
       notes: notes || ''
     });
 
     const populatedSerial = await ValidSerial.findById(validSerial._id)
-      .populate('addedBy', 'name email');
+      .populate('addedBy', 'name email')
+      .populate('product', 'name model type points');
 
     res.status(201).json({
       success: true,

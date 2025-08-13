@@ -9,6 +9,15 @@ const validSerialSchema = new mongoose.Schema({
     uppercase: true,
     match: [/^[A-Z0-9]{6,20}$/, 'Serial number must be 6-20 alphanumeric characters']
   },
+
+  // Product Information
+  product: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    required: [true, 'Product reference is required']
+  },
+
+  // Usage Tracking
   isUsed: {
     type: Boolean,
     default: false
@@ -22,6 +31,14 @@ const validSerialSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+
+  // Points at time of registration (for historical accuracy)
+  pointsAwarded: {
+    type: Number,
+    default: null // Will be set when serial is used
+  },
+
+  // Admin Information
   addedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Admin',
@@ -39,30 +56,54 @@ const validSerialSchema = new mongoose.Schema({
 validSerialSchema.index({ serialNumber: 1 });
 validSerialSchema.index({ isUsed: 1 });
 validSerialSchema.index({ addedBy: 1 });
+validSerialSchema.index({ product: 1 });
+
+// Static method to check if serial number is valid and get product info
+validSerialSchema.statics.getSerialInfo = async function(serialNumber) {
+  const validSerial = await this.findOne({
+    serialNumber: serialNumber.toUpperCase(),
+    isUsed: false
+  }).populate('product');
+
+  return validSerial;
+};
 
 // Static method to check if serial number is valid (approved)
 validSerialSchema.statics.isSerialValid = async function(serialNumber) {
-  const validSerial = await this.findOne({ 
+  const validSerial = await this.findOne({
     serialNumber: serialNumber.toUpperCase(),
     isUsed: false
   });
   return !!validSerial;
 };
 
-// Static method to mark serial as used
+// Static method to mark serial as used with points tracking
 validSerialSchema.statics.markAsUsed = async function(serialNumber, installerId) {
+  // Get the serial with product info
+  const validSerial = await this.findOne({
+    serialNumber: serialNumber.toUpperCase(),
+    isUsed: false
+  }).populate('product');
+
+  if (!validSerial) {
+    return null;
+  }
+
+  // Update with current product points
   const result = await this.findOneAndUpdate(
-    { 
+    {
       serialNumber: serialNumber.toUpperCase(),
       isUsed: false
     },
     {
       isUsed: true,
       usedBy: installerId,
-      usedAt: new Date()
+      usedAt: new Date(),
+      pointsAwarded: validSerial.product.points // Store points at time of use
     },
     { new: true }
-  );
+  ).populate('product');
+
   return result;
 };
 

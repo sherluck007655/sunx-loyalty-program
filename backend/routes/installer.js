@@ -235,10 +235,11 @@ router.get('/dashboard', protectInstaller, async (req, res) => {
       });
     }
 
-    // Get recent serials and payments
+    // Get recent serials with product info and payments
     const recentSerials = await SerialNumber.find({ installer: req.installer._id })
       .sort({ createdAt: -1 })
-      .limit(5);
+      .limit(5)
+      .populate('product', 'name model type points');
 
     const payments = await Payment.find({ installer: req.installer._id })
       .sort({ createdAt: -1 })
@@ -246,6 +247,8 @@ router.get('/dashboard', protectInstaller, async (req, res) => {
 
     // Calculate real-time stats
     const totalSerials = await SerialNumber.countDocuments({ installer: req.installer._id });
+    const totalPoints = await SerialNumber.getInstallerTotalPoints(req.installer._id);
+
     const pendingPayments = await Payment.countDocuments({
       installer: req.installer._id,
       status: 'pending'
@@ -256,16 +259,23 @@ router.get('/dashboard', protectInstaller, async (req, res) => {
     });
 
     // Update installer's cached totals if they don't match real data
-    if (installer.totalInverters !== totalSerials) {
+    if (installer.totalInverters !== totalSerials || installer.totalPoints !== totalPoints) {
       installer.totalInverters = totalSerials;
-      await installer.updateProgress();
+      installer.totalPoints = totalPoints;
+      installer.isEligibleForPayment = totalPoints >= 1000; // Updated to use points
+      await installer.save(); // Use save instead of updateProgress
     }
 
-    // Calculate milestone progress
-    const currentMilestone = Math.floor(installer.totalInverters / 10);
-    const currentProgress = installer.totalInverters % 10;
-    const progressPercentage = (currentProgress / 10) * 100;
-    const nextMilestoneAt = currentProgress === 0 ? 0 : 10 - currentProgress;
+    // Calculate milestone progress based on points (1000 points = 1 milestone)
+    const currentMilestone = Math.floor(installer.totalPoints / 1000);
+    const currentProgress = installer.totalPoints % 1000;
+    const progressPercentage = (currentProgress / 1000) * 100;
+    const nextMilestoneAt = currentProgress === 0 ? 0 : 1000 - currentProgress;
+
+    // Calculate total earnings and pending amounts using new PaymentRequest model
+    const PaymentRequest = require('../models/PaymentRequest');
+    const totalPaid = await PaymentRequest.getInstallerTotalPaid(req.installer._id);
+    const pendingAmount = await PaymentRequest.getInstallerPendingAmount(req.installer._id);
 
     res.json({
       success: true,
@@ -276,17 +286,38 @@ router.get('/dashboard', protectInstaller, async (req, res) => {
           loyaltyCardId: installer.loyaltyCardId,
           totalPoints: installer.totalPoints,
           totalInverters: installer.totalInverters,
-          isEligibleForPayment: installer.isEligibleForPayment,
+          isEligibleForPayment: installer.totalPoints >= 1000, // Updated to use points
           progressPercentage
         },
-        recentSerials,
+        recentSerials: recentSerials.map(serial => ({
+          id: serial._id,
+          serialNumber: serial.serialNumber,
+          installationDate: serial.installationDate,
+          location: serial.location,
+          pointsEarned: serial.pointsEarned,
+          product: serial.product ? {
+            name: serial.product.name,
+            model: serial.product.model,
+            type: serial.product.type,
+            points: serial.product.points
+          } : null,
+          // Legacy fields for backward compatibility
+          inverterModel: serial.inverterModel,
+          capacity: serial.capacity,
+          status: serial.status,
+          createdAt: serial.createdAt
+        })),
         payments,
         stats: {
-          totalSerials,
-          totalInverters: installer.totalInverters, // Alias for compatibility
+          totalProducts: totalSerials, // Changed from totalInverters to totalProducts
+          totalInverters: installer.totalInverters, // Keep for backward compatibility
           totalPoints: installer.totalPoints,
-          pendingPayments,
+          totalEarnings: totalPaid.totalAmount,
+          pendingPayments: pendingAmount.totalAmount,
           completedPayments,
+          isEligibleForPayment: installer.totalPoints >= 1000,
+          pointValue: 50, // PKR 50 per point
+          currency: 'PKR',
           milestones: {
             completed: currentMilestone,
             currentProgress: currentProgress,
@@ -419,16 +450,26 @@ router.get('/payment/stats', protectInstaller, requireApproved, async (req, res)
       { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
 
-    const totalInverters = await SerialNumber.countDocuments({ installer: installer._id });
-    const eligibleForPayment = totalInverters >= 10;
+    const totalProducts = await SerialNumber.countDocuments({ installer: installer._id });
+    const totalPoints = await SerialNumber.getInstallerTotalPoints(installer._id);
+    const eligibleForPayment = totalPoints >= 1000;
+
+    // Use PaymentRequest model for accurate payment tracking
+    const PaymentRequest = require('../models/PaymentRequest');
+    const paidStats = await PaymentRequest.getInstallerTotalPaid(installer._id);
+    const pendingStats = await PaymentRequest.getInstallerPendingAmount(installer._id);
 
     res.json({
       success: true,
       data: {
-        totalPaid: totalPaid[0]?.total || 0,
-        pendingAmount: pendingAmount[0]?.total || 0,
-        totalInverters,
-        eligibleForPayment
+        totalPaid: paidStats.totalAmount,
+        pendingAmount: pendingStats.totalAmount,
+        totalProducts, // Changed from totalInverters
+        totalInverters: totalProducts, // Keep for backward compatibility
+        totalPoints,
+        eligibleForPayment,
+        pointValue: 50, // PKR 50 per point
+        currency: 'PKR'
       }
     });
   } catch (error) {

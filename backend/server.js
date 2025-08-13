@@ -13,6 +13,7 @@ const installerRoutes = require('./routes/installer');
 const adminRoutes = require('./routes/admin');
 const serialRoutes = require('./routes/serial');
 const paymentRoutes = require('./routes/payment');
+const paymentRequestRoutes = require('./routes/paymentRequests');
 const promotionRoutes = require('./routes/promotion');
 const trainingRoutes = require('./routes/training');
 const documentsRoutes = require('./routes/documents');
@@ -75,6 +76,7 @@ app.get('/api', (req, res) => {
       admin: '/api/admin',
       serial: '/api/serial',
       payment: '/api/payment',
+      paymentRequests: '/api/payment-requests',
       promotion: '/api/promotion',
       training: '/api/training',
       documents: '/api/documents'
@@ -86,8 +88,10 @@ app.get('/api', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/installer', installerRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/products', require('./routes/admin/products'));
 app.use('/api/serial', serialRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/payment-requests', paymentRequestRoutes);
 app.use('/api/promotion', promotionRoutes);
 app.use('/api/training', trainingRoutes);
 app.use('/api/documents', documentsRoutes);

@@ -306,9 +306,30 @@ app.get('/api/documents/categories/:categoryId/documents', (req, res) => {
     });
 });
 
-// Serve React app
+// Health check
+app.get('/health', (req, res) => {
+    res.json({ status: 'OK', message: 'Training System Demo Server' });
+});
+
+// Catch all for SPA routing
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/build/index.html'));
+    res.json({
+        message: 'Training System Demo API',
+        availableEndpoints: [
+            'GET /api/training/categories',
+            'GET /api/training/featured',
+            'GET /api/training/popular',
+            'GET /api/training/categories/:id/videos',
+            'GET /api/training/videos/:id',
+            'GET /api/documents/categories',
+            'GET /api/documents/featured',
+            'GET /api/documents/popular',
+            'GET /api/documents/types',
+            'GET /api/documents/file-types',
+            'GET /api/documents/categories/:id/documents'
+        ],
+        note: 'This is a demo server with mock data. Build the React frontend to see the full UI.'
+    });
 });
 
 // Start server

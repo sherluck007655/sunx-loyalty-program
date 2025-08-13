@@ -11,7 +11,7 @@ const { validatePromotion } = require('../middleware/validation');
 
 // Import admin sub-routes
 const adminTrainingRoutes = require('./admin/training');
-const adminDocumentsRoutes = require('./admin/documents');
+// const adminDocumentsRoutes = require('./admin/documents'); // Temporarily disabled
 
 // @desc    Get admin dashboard data
 // @route   GET /api/admin/dashboard
@@ -1297,6 +1297,6 @@ router.delete('/payments/:id', protectAdmin, checkPermission('canManagePayments'
 
 // Mount admin sub-routes
 router.use('/training', adminTrainingRoutes);
-router.use('/documents', adminDocumentsRoutes);
+// router.use('/documents', adminDocumentsRoutes); // Temporarily disabled
 
 module.exports = router;

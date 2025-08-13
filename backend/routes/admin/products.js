@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const Product = require('../../models/Product');
 const ValidSerial = require('../../models/ValidSerial');
-const { adminAuth } = require('../../middleware/auth');
+const { protectAdmin } = require('../../middleware/auth');
 
 // Get all products
-router.get('/', adminAuth, async (req, res) => {
+router.get('/', protectAdmin, async (req, res) => {
   try {
     const { type, isActive, search } = req.query;
     let query = {};
@@ -41,7 +41,7 @@ router.get('/', adminAuth, async (req, res) => {
 });
 
 // Get product by ID
-router.get('/:id', adminAuth, async (req, res) => {
+router.get('/:id', protectAdmin, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
       .populate('createdBy', 'name')
@@ -70,7 +70,7 @@ router.get('/:id', adminAuth, async (req, res) => {
 });
 
 // Create new product
-router.post('/', adminAuth, async (req, res) => {
+router.post('/', protectAdmin, async (req, res) => {
   try {
     const productData = {
       ...req.body,
@@ -96,7 +96,7 @@ router.post('/', adminAuth, async (req, res) => {
 });
 
 // Update product
-router.put('/:id', adminAuth, async (req, res) => {
+router.put('/:id', protectAdmin, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     
@@ -139,7 +139,7 @@ router.put('/:id', adminAuth, async (req, res) => {
 });
 
 // Update product points specifically
-router.patch('/:id/points', adminAuth, async (req, res) => {
+router.patch('/:id/points', protectAdmin, async (req, res) => {
   try {
     const { points, reason } = req.body;
     
@@ -181,7 +181,7 @@ router.patch('/:id/points', adminAuth, async (req, res) => {
 });
 
 // Delete product (soft delete)
-router.delete('/:id', adminAuth, async (req, res) => {
+router.delete('/:id', protectAdmin, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     
@@ -225,7 +225,7 @@ router.delete('/:id', adminAuth, async (req, res) => {
 });
 
 // Get product types
-router.get('/types/list', adminAuth, async (req, res) => {
+router.get('/types/list', protectAdmin, async (req, res) => {
   try {
     const types = await Product.distinct('type');
     
@@ -244,7 +244,7 @@ router.get('/types/list', adminAuth, async (req, res) => {
 });
 
 // Get products by type
-router.get('/type/:type', adminAuth, async (req, res) => {
+router.get('/type/:type', protectAdmin, async (req, res) => {
   try {
     const products = await Product.getByType(req.params.type);
     
@@ -263,7 +263,7 @@ router.get('/type/:type', adminAuth, async (req, res) => {
 });
 
 // Bulk update points for multiple products
-router.patch('/bulk/points', adminAuth, async (req, res) => {
+router.patch('/bulk/points', protectAdmin, async (req, res) => {
   try {
     const { updates, reason } = req.body; // updates: [{ productId, points }]
     

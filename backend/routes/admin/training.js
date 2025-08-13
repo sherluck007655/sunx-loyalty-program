@@ -3,10 +3,10 @@ const router = express.Router();
 const TrainingCategory = require('../../models/TrainingCategory');
 const TrainingVideo = require('../../models/TrainingVideo');
 const VideoView = require('../../models/VideoView');
-const { authenticateAdmin } = require('../../middleware/auth');
+const { protectAdmin } = require('../../middleware/auth');
 
 // Apply admin authentication to all routes
-router.use(authenticateAdmin);
+router.use(protectAdmin);
 
 // TRAINING CATEGORIES MANAGEMENT
 

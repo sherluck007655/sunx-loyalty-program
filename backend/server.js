@@ -16,7 +16,7 @@ const paymentRoutes = require('./routes/payment');
 const paymentRequestRoutes = require('./routes/paymentRequests');
 const promotionRoutes = require('./routes/promotion');
 const trainingRoutes = require('./routes/training');
-const documentsRoutes = require('./routes/documents');
+// const documentsRoutes = require('./routes/documents'); // Temporarily disabled
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -79,7 +79,7 @@ app.get('/api', (req, res) => {
       paymentRequests: '/api/payment-requests',
       promotion: '/api/promotion',
       training: '/api/training',
-      documents: '/api/documents'
+      // documents: '/api/documents' // Temporarily disabled
     }
   });
 });
@@ -94,7 +94,7 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/payment-requests', paymentRequestRoutes);
 app.use('/api/promotion', promotionRoutes);
 app.use('/api/training', trainingRoutes);
-app.use('/api/documents', documentsRoutes);
+// app.use('/api/documents', documentsRoutes); // Temporarily disabled
 
 // Root endpoint
 app.get('/', (req, res) => {

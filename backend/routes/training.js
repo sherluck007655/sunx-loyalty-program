@@ -3,7 +3,7 @@ const router = express.Router();
 const TrainingCategory = require('../models/TrainingCategory');
 const TrainingVideo = require('../models/TrainingVideo');
 const VideoView = require('../models/VideoView');
-const { authenticateToken, optionalAuth } = require('../middleware/auth');
+const { protectInstaller } = require('../middleware/auth');
 
 // Get all training categories with video counts
 router.get('/categories', async (req, res) => {
@@ -79,7 +79,7 @@ router.get('/categories/:categoryId/videos', async (req, res) => {
 });
 
 // Get single video details
-router.get('/videos/:videoId', optionalAuth, async (req, res) => {
+router.get('/videos/:videoId', async (req, res) => {
     try {
         const { videoId } = req.params;
         
@@ -93,12 +93,8 @@ router.get('/videos/:videoId', optionalAuth, async (req, res) => {
             });
         }
         
-        // Record view if user is authenticated
-        if (req.user) {
-            await video.incrementViewCount(req.user.id);
-        } else {
-            await video.incrementViewCount();
-        }
+        // Record view (no authentication required for viewing)
+        await video.incrementViewCount();
         
         res.json({
             success: true,
@@ -200,17 +196,17 @@ router.get('/popular', async (req, res) => {
 });
 
 // Get user's watch history (authenticated users only)
-router.get('/history', authenticateToken, async (req, res) => {
+router.get('/history', protectInstaller, async (req, res) => {
     try {
         const { page = 1, limit = 20 } = req.query;
         
         const history = await VideoView.getUserWatchHistory(
-            req.user.id, 
-            parseInt(page), 
+            req.installer._id,
+            parseInt(page),
             parseInt(limit)
         );
-        
-        const total = await VideoView.countDocuments({ userId: req.user.id });
+
+        const total = await VideoView.countDocuments({ userId: req.installer._id });
         
         res.json({
             success: true,
@@ -234,7 +230,7 @@ router.get('/history', authenticateToken, async (req, res) => {
 });
 
 // Record video view progress (authenticated users only)
-router.post('/videos/:videoId/progress', authenticateToken, async (req, res) => {
+router.post('/videos/:videoId/progress', protectInstaller, async (req, res) => {
     try {
         const { videoId } = req.params;
         const { watchDuration, completed = false } = req.body;
@@ -249,9 +245,9 @@ router.post('/videos/:videoId/progress', authenticateToken, async (req, res) => 
         
         // Update or create view record
         await VideoView.findOneAndUpdate(
-            { 
-                videoId, 
-                userId: req.user.id,
+            {
+                videoId,
+                userId: req.installer._id,
                 viewedAt: {
                     $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Within last 24 hours
                 }

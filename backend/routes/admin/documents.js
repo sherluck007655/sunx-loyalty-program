@@ -6,10 +6,10 @@ const fs = require('fs');
 const DocumentCategory = require('../../models/DocumentCategory');
 const Document = require('../../models/Document');
 const DocumentDownload = require('../../models/DocumentDownload');
-const { authenticateAdmin } = require('../../middleware/auth');
+const { protectAdmin } = require('../../middleware/auth');
 
 // Apply admin authentication to all routes
-router.use(authenticateAdmin);
+router.use(protectAdmin);
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({

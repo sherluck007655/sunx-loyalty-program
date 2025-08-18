@@ -94,6 +94,34 @@ module.exports = {
           50: '#fef2f2',
           500: '#ef4444',
           600: '#dc2626',
+        },
+        // Orange color variants (to replace any blue usage)
+        orange: {
+          50: '#fff7ed',
+          100: '#ffedd5',
+          200: '#fed7aa',
+          300: '#fdba74',
+          400: '#fb923c',
+          500: '#ff831f', // Main SunX Orange
+          600: '#ea580c',
+          700: '#c2410c',
+          800: '#9a3412',
+          900: '#7c2d12',
+          950: '#431407',
+        },
+        // Override blue colors to use orange instead
+        blue: {
+          50: '#fff7ed',
+          100: '#ffedd5',
+          200: '#fed7aa',
+          300: '#fdba74',
+          400: '#fb923c',
+          500: '#ff831f', // Main SunX Orange
+          600: '#ea580c',
+          700: '#c2410c',
+          800: '#9a3412',
+          900: '#7c2d12',
+          950: '#431407',
         }
       },
       borderRadius: {

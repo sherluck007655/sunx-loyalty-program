@@ -18,7 +18,8 @@ import {
   ExclamationTriangleIcon,
   KeyIcon,
   PencilIcon,
-  TrashIcon
+  TrashIcon,
+  DocumentArrowDownIcon
 } from '@heroicons/react/24/outline';
 import { adminService } from '../../services/adminService';
 import { formatDate, formatCurrency } from '../../utils/formatters';
@@ -41,6 +42,7 @@ const AdminInstallers = () => {
   const [editingInstaller, setEditingInstaller] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingInstaller, setDeletingInstaller] = useState(null);
+  const [exportLoading, setExportLoading] = useState(false);
 
   useEffect(() => {
     fetchInstallers();
@@ -178,6 +180,64 @@ const AdminInstallers = () => {
     }
   };
 
+  // Handle Excel export
+  const handleExportToExcel = async () => {
+    try {
+      setExportLoading(true);
+      console.log('📊 Starting Excel export...');
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
+
+      // Call the export API
+      const response = await fetch('/api/admin/installers/export', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Export failed');
+      }
+
+      // Get the filename from response headers
+      const contentDisposition = response.headers.get('content-disposition');
+      let filename = 'SunX_Installers.xlsx';
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Installers exported to Excel successfully!');
+      console.log('✅ Excel export completed:', filename);
+
+    } catch (error) {
+      console.error('❌ Excel export error:', error);
+      toast.error('Failed to export installers: ' + error.message);
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   // Handle delete installer
   const handleDeleteInstaller = (installer) => {
     if (!installer) {
@@ -236,6 +296,16 @@ const AdminInstallers = () => {
             <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
               View and manage installer accounts and performance
             </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              onClick={handleExportToExcel}
+              disabled={exportLoading}
+              className="btn-primary flex items-center justify-center gap-2 px-4 py-2 text-sm"
+            >
+              <DocumentArrowDownIcon className="h-4 w-4" />
+              {exportLoading ? 'Exporting...' : 'Export to Excel'}
+            </button>
           </div>
         </div>
 

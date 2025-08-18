@@ -44,7 +44,11 @@ export const authService = {
     } catch (error) {
       console.error('❌ Installer login failed:', error);
       if (error.response?.data) {
-        return error.response.data;
+        // Create a proper error with the server message
+        const errorMessage = error.response.data.message || 'Login failed';
+        const newError = new Error(errorMessage);
+        newError.response = error.response;
+        throw newError;
       }
       throw error;
     }
@@ -62,7 +66,11 @@ export const authService = {
     } catch (error) {
       console.error('❌ Admin login failed:', error);
       if (error.response?.data) {
-        return error.response.data;
+        // Create a proper error with the server message
+        const errorMessage = error.response.data.message || 'Login failed';
+        const newError = new Error(errorMessage);
+        newError.response = error.response;
+        throw newError;
       }
       throw error;
     }

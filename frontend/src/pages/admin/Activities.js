@@ -261,7 +261,7 @@ const Activities = () => {
   const getActivityColor = (type) => {
     switch (type) {
       case 'user_registration':
-        return 'text-blue-600 bg-blue-100 dark:bg-blue-900/20';
+        return 'text-orange-600 bg-orange-100 dark:bg-orange-900/20';
       case 'payment_request':
         return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20';
       case 'payment_approved':

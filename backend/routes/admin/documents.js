@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const DocumentCategory = require('../../models/DocumentCategory');
 const Document = require('../../models/Document');
 const DocumentDownload = require('../../models/DocumentDownload');
@@ -11,54 +12,60 @@ const { protectAdmin } = require('../../middleware/auth');
 // Apply admin authentication to all routes
 router.use(protectAdmin);
 
-// Configure multer for file uploads
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, '../../uploads/documents');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// File type validation
+const allowedMimeTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/csv',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/webp',
+    'application/zip'
+];
+
+// Multer configuration for file uploads
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const uploadPath = path.join(__dirname, '../../uploads/documents');
-        if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath, { recursive: true });
-        }
-        cb(null, uploadPath);
+        cb(null, uploadsDir);
     },
     filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        // Generate unique filename
+        const uniqueSuffix = Date.now() + '-' + crypto.randomBytes(6).toString('hex');
         const ext = path.extname(file.originalname);
-        cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+        cb(null, `doc-${uniqueSuffix}${ext}`);
     }
 });
 
-const fileFilter = (req, file, cb) => {
-    const allowedTypes = [
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-powerpoint',
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        'text/plain',
-        'application/zip',
-        'application/x-rar-compressed'
-    ];
-    
-    if (allowedTypes.includes(file.mimetype)) {
-        cb(null, true);
-    } else {
-        cb(new Error('Invalid file type'), false);
-    }
-};
-
-const upload = multer({ 
-    storage,
-    fileFilter,
+const upload = multer({
+    storage: storage,
     limits: {
-        fileSize: 50 * 1024 * 1024 // 50MB limit
+        fileSize: 50 * 1024 * 1024, // 50MB limit
+        files: 1
+    },
+    fileFilter: (req, file, cb) => {
+        if (allowedMimeTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error(`Invalid file type. Allowed types: ${allowedMimeTypes.join(', ')}`), false);
+        }
     }
 });
 
-// DOCUMENT CATEGORIES MANAGEMENT
+// CATEGORY ROUTES
 
-// Get all document categories (including inactive)
+// Get all categories
 router.get('/categories', async (req, res) => {
     try {
         const categories = await DocumentCategory.find()
@@ -78,18 +85,37 @@ router.get('/categories', async (req, res) => {
     }
 });
 
-// Create new document category
+// Get active categories with document counts
+router.get('/categories/active', async (req, res) => {
+    try {
+        const categories = await DocumentCategory.getActiveWithCounts();
+        
+        res.json({
+            success: true,
+            data: categories
+        });
+    } catch (error) {
+        console.error('Error fetching active categories:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch active categories'
+        });
+    }
+});
+
+// Create new category
 router.post('/categories', async (req, res) => {
     try {
-        const { name, description, icon, sortOrder } = req.body;
+        const { name, description, icon, color, sortOrder } = req.body;
         
         const category = new DocumentCategory({
             name,
             description,
             icon,
+            color,
             sortOrder,
-            createdBy: req.user.id,
-            updatedBy: req.user.id
+            createdBy: req.admin._id,
+            updatedBy: req.admin._id
         });
         
         await category.save();
@@ -116,11 +142,11 @@ router.post('/categories', async (req, res) => {
     }
 });
 
-// Update document category
+// Update category
 router.put('/categories/:categoryId', async (req, res) => {
     try {
         const { categoryId } = req.params;
-        const { name, description, icon, sortOrder, isActive } = req.body;
+        const { name, description, icon, color, sortOrder, isActive } = req.body;
         
         const category = await DocumentCategory.findByIdAndUpdate(
             categoryId,
@@ -128,9 +154,10 @@ router.put('/categories/:categoryId', async (req, res) => {
                 name,
                 description,
                 icon,
+                color,
                 sortOrder,
                 isActive,
-                updatedBy: req.user.id
+                updatedBy: req.admin._id
             },
             { new: true, runValidators: true }
         );
@@ -156,17 +183,17 @@ router.put('/categories/:categoryId', async (req, res) => {
     }
 });
 
-// Delete document category
+// Delete category
 router.delete('/categories/:categoryId', async (req, res) => {
     try {
         const { categoryId } = req.params;
         
         // Check if category has documents
-        const documentCount = await Document.countDocuments({ categoryId });
+        const documentCount = await Document.countDocuments({ categoryId, isActive: true });
         if (documentCount > 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Cannot delete category with existing documents'
+                message: 'Cannot delete category with active documents'
             });
         }
         
@@ -192,43 +219,46 @@ router.delete('/categories/:categoryId', async (req, res) => {
     }
 });
 
-// DOCUMENTS MANAGEMENT
+// DOCUMENT ROUTES
 
-// Get all documents with filters
+// Get all documents with filtering and pagination
 router.get('/documents', async (req, res) => {
     try {
-        const { 
-            page = 1, 
-            limit = 20, 
-            categoryId, 
-            isActive, 
-            documentType,
-            fileType,
-            search 
+        const {
+            page = 1,
+            limit = 10,
+            categoryId,
+            search,
+            sortBy = 'createdAt',
+            sortOrder = 'desc',
+            isActive
         } = req.query;
-        
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
         const query = {};
-        
+
         if (categoryId) query.categoryId = categoryId;
         if (isActive !== undefined) query.isActive = isActive === 'true';
-        if (documentType) query.documentType = documentType;
-        if (fileType) query.fileType = fileType;
         if (search) {
-            query.$text = { $search: search };
+            query.$or = [
+                { title: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } },
+                { tags: { $in: [new RegExp(search, 'i')] } }
+            ];
         }
-        
-        const skip = (page - 1) * limit;
-        
-        const [documents, total] = await Promise.all([
-            Document.find(query)
-                .populate('categoryId', 'name slug')
-                .populate('createdBy updatedBy', 'name email')
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(parseInt(limit)),
-            Document.countDocuments(query)
-        ]);
-        
+
+        const sortOptions = {};
+        sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+        const documents = await Document.find(query)
+            .sort(sortOptions)
+            .skip(skip)
+            .limit(parseInt(limit))
+            .populate('categoryId', 'name slug color')
+            .populate('uploadedBy updatedBy', 'name email');
+
+        const total = await Document.countDocuments(query);
+
         res.json({
             success: true,
             data: {
@@ -237,7 +267,7 @@ router.get('/documents', async (req, res) => {
                     page: parseInt(page),
                     limit: parseInt(limit),
                     total,
-                    pages: Math.ceil(total / limit)
+                    pages: Math.ceil(total / parseInt(limit))
                 }
             }
         });
@@ -259,17 +289,16 @@ router.post('/documents', upload.single('document'), async (req, res) => {
                 message: 'No file uploaded'
             });
         }
-        
+
         const {
             title,
             description,
             categoryId,
-            documentType,
-            tags,
             version,
+            tags,
             isFeatured
         } = req.body;
-        
+
         // Verify category exists
         const category = await DocumentCategory.findById(categoryId);
         if (!category) {
@@ -280,24 +309,17 @@ router.post('/documents', upload.single('document'), async (req, res) => {
                 message: 'Invalid category'
             });
         }
-        
-        // Determine file type from extension
-        const fileExt = path.extname(req.file.originalname).toLowerCase();
-        const fileTypeMap = {
-            '.pdf': 'pdf',
-            '.doc': 'doc',
-            '.docx': 'docx',
-            '.xls': 'xls',
-            '.xlsx': 'xlsx',
-            '.ppt': 'ppt',
-            '.pptx': 'pptx',
-            '.txt': 'txt',
-            '.zip': 'zip',
-            '.rar': 'rar'
-        };
-        
-        const fileType = fileTypeMap[fileExt] || 'other';
-        
+
+        // Parse tags if provided
+        let parsedTags = [];
+        if (tags) {
+            try {
+                parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
+            } catch (e) {
+                parsedTags = [];
+            }
+        }
+
         const document = new Document({
             title,
             description,
@@ -306,20 +328,19 @@ router.post('/documents', upload.single('document'), async (req, res) => {
             originalFileName: req.file.originalname,
             filePath: req.file.path,
             fileSize: req.file.size,
-            documentType,
-            fileType,
-            tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
+            fileType: req.file.mimetype,
+            fileExtension: path.extname(req.file.originalname),
             version,
-            isFeatured,
-            createdBy: req.user.id,
-            updatedBy: req.user.id
+            tags: parsedTags,
+            isFeatured: isFeatured === 'true',
+            uploadedBy: req.admin._id
         });
-        
+
         await document.save();
-        
+
         // Update category document count
         await category.updateDocumentCount();
-        
+
         res.status(201).json({
             success: true,
             data: document,
@@ -327,15 +348,44 @@ router.post('/documents', upload.single('document'), async (req, res) => {
         });
     } catch (error) {
         console.error('Error uploading document:', error);
-        
-        // Delete uploaded file if there was an error
-        if (req.file) {
+
+        // Clean up uploaded file on error
+        if (req.file && fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
         }
-        
+
         res.status(500).json({
             success: false,
             message: 'Failed to upload document'
+        });
+    }
+});
+
+// Get single document
+router.get('/documents/:documentId', async (req, res) => {
+    try {
+        const { documentId } = req.params;
+
+        const document = await Document.findById(documentId)
+            .populate('categoryId', 'name slug color')
+            .populate('uploadedBy updatedBy', 'name email');
+
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                message: 'Document not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: document
+        });
+    } catch (error) {
+        console.error('Error fetching document:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch document'
         });
     }
 });
@@ -348,12 +398,32 @@ router.put('/documents/:documentId', async (req, res) => {
             title,
             description,
             categoryId,
-            documentType,
-            tags,
             version,
+            tags,
             isFeatured,
             isActive
         } = req.body;
+
+        // Verify category exists if categoryId is being updated
+        if (categoryId) {
+            const category = await DocumentCategory.findById(categoryId);
+            if (!category) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid category'
+                });
+            }
+        }
+
+        // Parse tags if provided
+        let parsedTags = tags;
+        if (tags && typeof tags === 'string') {
+            try {
+                parsedTags = JSON.parse(tags);
+            } catch (e) {
+                parsedTags = [];
+            }
+        }
 
         const document = await Document.findByIdAndUpdate(
             documentId,
@@ -361,15 +431,15 @@ router.put('/documents/:documentId', async (req, res) => {
                 title,
                 description,
                 categoryId,
-                documentType,
-                tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
                 version,
+                tags: parsedTags,
                 isFeatured,
                 isActive,
-                updatedBy: req.user.id
+                updatedBy: req.admin._id
             },
             { new: true, runValidators: true }
-        );
+        ).populate('categoryId', 'name slug color')
+         .populate('uploadedBy updatedBy', 'name email');
 
         if (!document) {
             return res.status(404).json({
@@ -397,7 +467,7 @@ router.delete('/documents/:documentId', async (req, res) => {
     try {
         const { documentId } = req.params;
 
-        const document = await Document.findByIdAndDelete(documentId);
+        const document = await Document.findById(documentId);
 
         if (!document) {
             return res.status(404).json({
@@ -411,14 +481,14 @@ router.delete('/documents/:documentId', async (req, res) => {
             fs.unlinkSync(document.filePath);
         }
 
+        // Delete document record
+        await Document.findByIdAndDelete(documentId);
+
         // Update category document count
         const category = await DocumentCategory.findById(document.categoryId);
         if (category) {
             await category.updateDocumentCount();
         }
-
-        // Delete related download records
-        await DocumentDownload.deleteMany({ documentId });
 
         res.json({
             success: true,
@@ -433,73 +503,42 @@ router.delete('/documents/:documentId', async (req, res) => {
     }
 });
 
-// Get document analytics
-router.get('/documents/:documentId/analytics', async (req, res) => {
+// Download document (Admin)
+router.get('/documents/:documentId/download', async (req, res) => {
     try {
         const { documentId } = req.params;
-        const { startDate, endDate } = req.query;
 
-        const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        const end = endDate ? new Date(endDate) : new Date();
+        const document = await Document.findById(documentId);
 
-        const analytics = await DocumentDownload.getDocumentAnalytics(documentId, start, end);
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                message: 'Document not found'
+            });
+        }
 
-        res.json({
-            success: true,
-            data: analytics
-        });
+        // Check if file exists
+        if (!fs.existsSync(document.filePath)) {
+            return res.status(404).json({
+                success: false,
+                message: 'File not found on server'
+            });
+        }
+
+        // Set appropriate headers
+        res.setHeader('Content-Disposition', `attachment; filename="${document.originalFileName}"`);
+        res.setHeader('Content-Type', document.fileType);
+        res.setHeader('Content-Length', document.fileSize);
+
+        // Stream file to response
+        const fileStream = fs.createReadStream(document.filePath);
+        fileStream.pipe(res);
+
     } catch (error) {
-        console.error('Error fetching document analytics:', error);
+        console.error('Error downloading document:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch document analytics'
-        });
-    }
-});
-
-// Get documents overview statistics
-router.get('/stats', async (req, res) => {
-    try {
-        const [
-            totalCategories,
-            activeCategories,
-            totalDocuments,
-            activeDocuments,
-            totalDownloads,
-            recentDownloads
-        ] = await Promise.all([
-            DocumentCategory.countDocuments(),
-            DocumentCategory.countDocuments({ isActive: true }),
-            Document.countDocuments(),
-            Document.countDocuments({ isActive: true }),
-            DocumentDownload.countDocuments(),
-            DocumentDownload.countDocuments({
-                downloadedAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
-            })
-        ]);
-
-        res.json({
-            success: true,
-            data: {
-                categories: {
-                    total: totalCategories,
-                    active: activeCategories
-                },
-                documents: {
-                    total: totalDocuments,
-                    active: activeDocuments
-                },
-                downloads: {
-                    total: totalDownloads,
-                    recent: recentDownloads
-                }
-            }
-        });
-    } catch (error) {
-        console.error('Error fetching document stats:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch document statistics'
+            message: 'Failed to download document'
         });
     }
 });

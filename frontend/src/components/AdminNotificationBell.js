@@ -149,7 +149,7 @@ const AdminNotificationBell = () => {
   const getNotificationColor = (type) => {
     switch (type) {
       case 'new_message':
-        return 'text-blue-600 bg-blue-100 dark:bg-blue-900/20';
+        return 'text-orange-600 bg-orange-100 dark:bg-orange-900/20';
       case 'payment_request':
         return 'text-green-600 bg-green-100 dark:bg-green-900/20';
       case 'payment_comment':
@@ -248,7 +248,7 @@ const AdminNotificationBell = () => {
                       key={notification.id}
                       onClick={() => handleNotificationClick(notification)}
                       className={`p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
-                        !notification.read ? 'bg-blue-50 dark:bg-blue-900/10' : ''
+                        !notification.read ? 'bg-orange-50 dark:bg-orange-900/10' : ''
                       }`}
                     >
                       <div className="flex items-start space-x-3">

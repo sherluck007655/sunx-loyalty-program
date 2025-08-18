@@ -292,9 +292,9 @@ const EnhancedChatSidebar = ({
                     {/* Enhanced Avatar */}
                     <div className="relative flex-shrink-0">
                       <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                        otherParticipant?.type === 'admin' 
-                          ? 'bg-gradient-to-r from-purple-500 to-purple-600' 
-                          : 'bg-gradient-to-r from-blue-500 to-blue-600'
+                        otherParticipant?.type === 'admin'
+                          ? 'bg-gradient-to-r from-purple-500 to-purple-600'
+                          : 'bg-gradient-to-r from-orange-500 to-orange-600'
                       } ${hasUnread ? 'ring-2 ring-primary-500 ring-offset-2' : ''}`}>
                         <span className="text-white font-medium">
                           {otherParticipant?.name?.charAt(0) || 'U'}

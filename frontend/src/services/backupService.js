@@ -65,53 +65,32 @@ class BackupService {
   async createBackup(options = {}) {
     try {
       console.log('🔄 Creating backup...');
-      
-      const backupData = {
-        metadata: {
-          version: '1.0',
-          timestamp: new Date().toISOString(),
-          type: options.type || 'manual',
-          description: options.description || 'Manual backup',
-          size: 0
+
+      // Call backend API to create backup
+      const response = await fetch('/api/admin/backup/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        data: {}
-      };
+        body: JSON.stringify({
+          type: options.type || 'manual',
+          description: options.description || 'Manual backup'
+        })
+      });
 
-      // Include user data if requested
-      if (options.includeUserData !== false) {
-        try {
-          backupData.data.installers = mockStorageHelpers.getAllInstallers();
-          backupData.data.serials = mockStorageHelpers.getAllSerials(1, 10000);
-          backupData.data.payments = mockStorageHelpers.getPayments(1, 10000);
-          backupData.data.validSerials = mockStorageHelpers.getAllValidSerials();
-          console.log('✅ User data included in backup');
-        } catch (error) {
-          console.error('❌ Error including user data:', error);
-          throw new Error('Failed to include user data: ' + error.message);
-        }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create backup');
       }
 
-      // Include system data if requested
-      if (options.includeSystemData !== false) {
-        try {
-          backupData.data.promotions = mockStorageHelpers.getAllPromotions();
-          backupData.data.promotionParticipations = mockStorageHelpers.getAllPromotionParticipations();
-          backupData.data.notifications = this.getNotifications();
-          backupData.data.settings = this.getSystemSettings();
-          console.log('✅ System data included in backup');
-        } catch (error) {
-          console.error('❌ Error including system data:', error);
-          throw new Error('Failed to include system data: ' + error.message);
-        }
-      }
+      const result = await response.json();
+      const backupData = result.data;
 
-      // Calculate backup size
-      const backupString = JSON.stringify(backupData);
-      backupData.metadata.size = new Blob([backupString]).size;
+      console.log('✅ Backup created successfully');
 
       // Generate backup ID
-      const backupId = `backup_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      backupData.metadata.id = backupId;
+      const backupId = backupData.metadata.id || `backup_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       // Add to backup history
       const historyEntry = {
@@ -124,14 +103,16 @@ class BackupService {
       };
 
       this.backupHistory.unshift(historyEntry);
-      
+
       // Keep only recent backups based on retention settings
       this.cleanupOldBackups();
-      
+
       this.saveBackupHistory();
 
       console.log('✅ Backup created successfully:', backupId);
-      toast.success('Backup created successfully!');
+      if (!options.silent) {
+        toast.success('Backup created successfully!');
+      }
 
       return {
         success: true,
@@ -142,7 +123,9 @@ class BackupService {
 
     } catch (error) {
       console.error('❌ Error creating backup:', error);
-      toast.error('Failed to create backup');
+      if (!options.silent) {
+        toast.error('Failed to create backup');
+      }
       return { success: false, error: error.message };
     }
   }
@@ -179,44 +162,50 @@ class BackupService {
   async restoreFromBackup(backupData) {
     try {
       console.log('🔄 Restoring from backup...');
-      
+
       if (!backupData || !backupData.data) {
         throw new Error('Invalid backup data');
       }
 
-      // Restore user data
-      if (backupData.data.installers) {
-        // Clear existing data and restore
-        mockStorageHelpers.clearAllData();
-        
-        // Restore installers
-        backupData.data.installers.forEach(installer => {
-          mockStorageHelpers.addInstaller(installer);
-        });
+      // Show confirmation dialog
+      const confirmed = window.confirm(
+        '⚠️ WARNING: This will replace ALL current data with the backup data. This action cannot be undone. Are you sure you want to continue?'
+      );
 
-        // Restore serials
-        if (backupData.data.serials && backupData.data.serials.serials) {
-          backupData.data.serials.serials.forEach(serial => {
-            mockStorageHelpers.addSerial(serial);
-          });
-        }
-
-        // Restore payments
-        if (backupData.data.payments && backupData.data.payments.payments) {
-          backupData.data.payments.payments.forEach(payment => {
-            mockStorageHelpers.addPayment(payment);
-          });
-        }
+      if (!confirmed) {
+        return { success: false, error: 'Restore cancelled by user' };
       }
 
+      // Call backend API to restore backup
+      const response = await fetch('/api/admin/backup/restore', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ backupData })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to restore backup');
+      }
+
+      const result = await response.json();
+
       console.log('✅ Backup restored successfully');
-      toast.success('Backup restored successfully!');
-      
-      return { success: true };
+      toast.success('Backup restored successfully! Page will reload in 3 seconds...');
+
+      // Reload page after 3 seconds to refresh all data
+      setTimeout(() => {
+        window.location.reload();
+      }, 3000);
+
+      return { success: true, data: result.data };
 
     } catch (error) {
       console.error('❌ Error restoring backup:', error);
-      toast.error('Failed to restore backup');
+      toast.error('Failed to restore backup: ' + error.message);
       return { success: false, error: error.message };
     }
   }
@@ -269,17 +258,19 @@ class BackupService {
         type: 'automatic',
         description: `Automatic ${this.backupSettings.frequency} backup`,
         includeUserData: this.backupSettings.includeUserData,
-        includeSystemData: this.backupSettings.includeSystemData
+        includeSystemData: this.backupSettings.includeSystemData,
+        // Do not show toasts for automatic, background backups
+        silent: true
       });
-      
+
       if (result.success) {
         this.backupSettings.lastAutoBackup = new Date().toISOString();
         this.saveBackupSettings();
       }
-      
+
       return result;
     }
-    
+
     return { success: true, message: 'No backup needed' };
   }
 

@@ -91,9 +91,9 @@ const PasswordUpdate = ({ userType = 'installer', userId, userEmail, onClose }) 
 
   const getStrengthBarColor = (score) => {
     if (score >= 80) return 'bg-green-500';
-    if (score >= 60) return 'bg-blue-500';
+    if (score >= 60) return 'bg-orange-500';
     if (score >= 40) return 'bg-yellow-500';
-    if (score >= 20) return 'bg-orange-500';
+    if (score >= 20) return 'bg-orange-400';
     return 'bg-red-500';
   };
 

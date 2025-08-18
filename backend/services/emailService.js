@@ -219,7 +219,7 @@ class EmailService {
   getPaymentStatusEmailTemplate(name, paymentDetails) {
     const statusColor = {
       'approved': '#28a745',
-      'paid': '#007bff',
+      'paid': '#ff831f',
       'rejected': '#dc3545'
     };
 

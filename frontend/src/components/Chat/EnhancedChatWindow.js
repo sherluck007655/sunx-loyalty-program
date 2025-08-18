@@ -206,9 +206,9 @@ const EnhancedChatWindow = ({ conversation, onClose, currentUser }) => {
           {/* Avatar */}
           <div className="relative">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-              otherParticipant?.type === 'admin' 
-                ? 'bg-gradient-to-r from-purple-500 to-purple-600' 
-                : 'bg-gradient-to-r from-blue-500 to-blue-600'
+              otherParticipant?.type === 'admin'
+                ? 'bg-gradient-to-r from-purple-500 to-purple-600'
+                : 'bg-gradient-to-r from-orange-500 to-orange-600'
             }`}>
               <span className="text-white font-medium text-sm">
                 {otherParticipant?.name?.charAt(0) || 'U'}
@@ -463,9 +463,9 @@ const EnhancedChatWindow = ({ conversation, onClose, currentUser }) => {
           <div className="space-y-4">
             <div className="text-center">
               <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 ${
-                otherParticipant?.type === 'admin' 
-                  ? 'bg-gradient-to-r from-purple-500 to-purple-600' 
-                  : 'bg-gradient-to-r from-blue-500 to-blue-600'
+                otherParticipant?.type === 'admin'
+                  ? 'bg-gradient-to-r from-purple-500 to-purple-600'
+                  : 'bg-gradient-to-r from-orange-500 to-orange-600'
               }`}>
                 <span className="text-white font-medium text-lg">
                   {otherParticipant?.name?.charAt(0) || 'U'}

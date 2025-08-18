@@ -87,7 +87,7 @@ const Promotions = () => {
 
   const getProgressColor = (percentage) => {
     if (percentage >= 100) return 'bg-green-500';
-    if (percentage >= 75) return 'bg-blue-500';
+    if (percentage >= 75) return 'bg-orange-500';
     if (percentage >= 50) return 'bg-yellow-500';
     return 'bg-gray-300';
   };
@@ -164,7 +164,7 @@ const Promotions = () => {
           <div className="flex space-x-3">
             <button
               onClick={() => openPromotionDetails(promotion)}
-              className="flex-1 btn-outline"
+              className="flex-1 border border-input bg-background hover:bg-accent hover:text-accent-foreground font-medium py-2 px-4 rounded-lg transition-colors duration-200"
             >
               View Details
             </button>
@@ -172,7 +172,7 @@ const Promotions = () => {
               <button
                 onClick={() => handleJoinPromotion(promotion._id)}
                 disabled={joining}
-                className="flex-1 btn-primary flex items-center justify-center"
+                className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center disabled:opacity-50"
               >
                 {joining ? (
                   <>
@@ -187,7 +187,7 @@ const Promotions = () => {
             {isParticipating && (
               <Link
                 to={`/promotions/${promotion._id}/progress`}
-                className="flex-1 btn-primary text-center inline-flex items-center justify-center"
+                className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-center inline-flex items-center justify-center"
               >
                 <ChartBarIcon className="h-4 w-4 mr-2" />
                 View Progress
@@ -251,7 +251,7 @@ const Promotions = () => {
             <div className="card">
               <div className="card-body">
                 <div className="flex items-center">
-                  <ClockIcon className="h-8 w-8 text-blue-500" />
+                  <ClockIcon className="h-8 w-8 text-orange-500" />
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
                       Active Participations

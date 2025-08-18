@@ -201,7 +201,7 @@ const Analytics = () => {
                         <p className="text-2xl font-bold text-gray-900 dark:text-white">
                           {formatNumber(systemAnalytics.serialActivity.totalSerials)}
                         </p>
-                        <p className="text-xs text-blue-600">
+                        <p className="text-xs text-orange-600">
                           {systemAnalytics.serialActivity.serialsToday} today
                         </p>
                       </div>

@@ -35,61 +35,14 @@ export const adminService = {
       const response = await api.get('/admin/dashboard');
       console.log('✅ Admin dashboard stats response:', response.data);
 
-      // Backend now returns comprehensive data in the expected format
+      // Backend returns comprehensive data in the correct format
       const backendData = response.data.data;
       console.log('🔍 Backend data structure:', backendData);
 
-      // Use the comprehensive data from the enhanced backend
-      const transformedStats = {
-        installers: backendData.installers || {
-          total: backendData.stats?.totalInstallers || 0,
-          approved: backendData.stats?.activeInstallers || 0,
-          pending: 0,
-          rejected: 0,
-          suspended: 0,
-          growthRate: 0
-        },
-        installations: backendData.installations || {
-          total: backendData.stats?.totalSerials || 0,
-          recent: backendData.recentActivities?.serials?.length || 0,
-          averagePerInstaller: 0
-        },
-        payments: backendData.payments || {
-          total: 0,
-          pending: backendData.stats?.pendingPayments || 0,
-          approved: 0,
-          paid: 0,
-          totalAmount: 0,
-          pendingAmount: 0,
-          paidAmount: 0
-        },
-        serials: backendData.serials || {
-          total: backendData.stats?.totalSerials || 0,
-          recent: backendData.recentActivities?.serials?.length || 0,
-          uniqueProducts: 0,
-          uniqueCities: 0
-        },
-        promotions: backendData.promotions || {
-          active: backendData.stats?.activePromotions || 0,
-          total: backendData.stats?.activePromotions || 0,
-          expired: 0
-        },
-        overview: backendData.overview || {
-          totalPaidAmount: 0,
-          averageRating: 4.2,
-          totalSerials: backendData.stats?.totalSerials || 0,
-          totalProducts: 0,
-          totalCities: 0,
-          systemHealth: 'fair',
-          lastUpdated: new Date().toISOString()
-        }
-      };
-
-      console.log('✅ Transformed dashboard data:', transformedStats);
-
+      // Return the backend data directly since it's already in the correct format
       return {
         success: true,
-        data: transformedStats
+        data: backendData
       };
     } catch (error) {
       console.error('❌ Admin getDashboardStats API error:', error);
@@ -103,6 +56,7 @@ export const adminService = {
           payments: { total: 0, pending: 0, approved: 0, paid: 0, totalAmount: 0, pendingAmount: 0, paidAmount: 0 },
           serials: { total: 0, recent: 0, uniqueProducts: 0, uniqueCities: 0 },
           promotions: { active: 0, total: 0, expired: 0 },
+          products: { total: 0, active: 0, inactive: 0, averagePoints: 0 },
           overview: {
             totalPaidAmount: 0,
             averageRating: 0,
@@ -646,12 +600,17 @@ export const adminService = {
     }
   },
 
-  uploadValidSerials: async (csvData) => {
-    console.log('🔍 Admin uploadValidSerials called');
+  uploadValidSerials: async (csvData, productId = null) => {
+    console.log('🔍 Admin uploadValidSerials called with:', { csvData: csvData.length + ' chars', productId });
     console.log('🔍 Using real backend API');
 
     try {
-      const response = await api.post('/admin/valid-serials/upload', { csvData });
+      const requestData = { csvData };
+      if (productId) {
+        requestData.productId = productId;
+      }
+
+      const response = await api.post('/admin/valid-serials/upload', requestData);
       console.log('✅ Admin upload serials response:', response.data);
       return response.data;
     } catch (error) {
@@ -663,15 +622,21 @@ export const adminService = {
     }
   },
 
-  addValidSerial: async (serialNumber, notes = '') => {
-    console.log('🔍 Admin addValidSerial called with:', { serialNumber, notes });
+  addValidSerial: async (serialNumber, notes = '', productId = null) => {
+    console.log('🔍 Admin addValidSerial called with:', { serialNumber, notes, productId });
     console.log('🔍 Using real backend API');
 
     try {
-      const response = await api.post('/admin/valid-serials', {
+      const requestData = {
         serialNumber: serialNumber.toUpperCase(),
         notes
-      });
+      };
+
+      if (productId) {
+        requestData.productId = productId;
+      }
+
+      const response = await api.post('/admin/valid-serials', requestData);
       console.log('✅ Admin add serial response:', response.data);
       return response.data;
     } catch (error) {
@@ -685,26 +650,15 @@ export const adminService = {
 
   removeValidSerial: async (serialNumber) => {
     console.log('🔍 Admin removeValidSerial called with:', serialNumber);
-
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    console.log('🔍 Making real API call to backend');
 
     try {
-      const removed = mockStorageHelpers.removeValidSerial(serialNumber);
-
-      const mockResponse = {
-        success: true,
-        message: removed ? 'Serial number removed successfully' : 'Serial number not found',
-        data: {
-          removed,
-          serial: serialNumber
-        }
-      };
-
-      console.log('✅ Admin remove serial response:', mockResponse);
-      return mockResponse;
+      const response = await api.delete(`/admin/valid-serials/${serialNumber}`);
+      console.log('✅ Admin remove serial response:', response.data);
+      return response.data;
     } catch (error) {
       console.error('❌ Admin remove serial failed:', error);
+      console.error('   Error details:', error.response?.data || error.message);
       throw error;
     }
   },
@@ -1107,6 +1061,237 @@ export const adminService = {
       console.error('   Error details:', error.response?.data || error.message);
       throw error;
     }
+  },
+
+  // Product Management
+  getProducts: async (filters = {}) => {
+    console.log('🔍 Admin getProducts called with filters:', filters);
+
+    try {
+      const params = new URLSearchParams();
+      if (filters.search) params.append('search', filters.search);
+      if (filters.type) params.append('type', filters.type);
+      if (filters.isActive !== undefined) params.append('isActive', filters.isActive);
+
+      // Always add cache buster
+      params.append('_t', Date.now());
+      params.append('_r', Math.random().toString(36).substring(7));
+
+      const response = await api.get(`/admin/products?${params.toString()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      console.log('✅ Get products response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Get products failed:', error);
+      console.error('   Error details:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  getProduct: async (productId) => {
+    console.log('🔍 Admin getProduct called for ID:', productId);
+
+    try {
+      const response = await api.get(`/admin/products/${productId}`);
+      console.log('✅ Get product response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Get product failed:', error);
+      console.error('   Error details:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  createProduct: async (productData) => {
+    console.log('🔍 Admin createProduct called with data:', productData);
+
+    try {
+      const response = await api.post('/admin/products', productData);
+      console.log('✅ Create product response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Create product failed:', error);
+      console.error('   Error details:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  updateProduct: async (productId, productData) => {
+    console.log('🔍 Admin updateProduct called for ID:', productId, 'with data:', productData);
+
+    try {
+      const response = await api.put(`/admin/products/${productId}`, productData);
+      console.log('✅ Update product response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Update product failed:', error);
+      console.error('   Error details:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  updateProductPoints: async (productId, points, reason) => {
+    console.log('🔍 Admin updateProductPoints called for ID:', productId, 'points:', points, 'reason:', reason);
+
+    try {
+      const response = await api.patch(`/admin/products/${productId}/points`, {
+        points,
+        reason
+      });
+      console.log('✅ Update product points response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Update product points failed:', error);
+      console.error('   Error details:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  deleteProduct: async (productId, { force = false } = {}) => {
+    console.log('🔍 Admin deleteProduct called for ID:', productId, 'force:', force);
+
+    try {
+      const response = await api.delete(`/admin/products/${productId}${force ? '?force=true' : ''}`);
+      console.log('✅ Delete product response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Delete product failed:', error);
+      console.error('   Error details:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  getProductTypes: async () => {
+    console.log('🔍 Admin getProductTypes called');
+
+    try {
+      const response = await api.get('/admin/products/types/list');
+      console.log('✅ Get product types response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Get product types failed:', error);
+      console.error('   Error details:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  getProductsByType: async (type) => {
+    console.log('🔍 Admin getProductsByType called for type:', type);
+
+    try {
+      const response = await api.get(`/admin/products/type/${type}`);
+      console.log('✅ Get products by type response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Get products by type failed:', error);
+      console.error('   Error details:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  bulkUpdateProductPoints: async (updates, reason) => {
+    console.log('🔍 Admin bulkUpdateProductPoints called with updates:', updates, 'reason:', reason);
+
+    try {
+      const response = await api.patch('/admin/products/bulk/points', {
+        updates,
+        reason
+      });
+      console.log('✅ Bulk update product points response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Bulk update product points failed:', error);
+      console.error('   Error details:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  // Training Management
+  getTrainingCategories: async () => {
+    const res = await api.get('/admin/training/categories');
+    return res.data;
+  },
+  createTrainingCategory: async (data) => {
+    const res = await api.post('/admin/training/categories', data);
+    return res.data;
+  },
+  updateTrainingCategory: async (categoryId, data) => {
+    const res = await api.put(`/admin/training/categories/${categoryId}`, data);
+    return res.data;
+  },
+  deleteTrainingCategory: async (categoryId) => {
+    const res = await api.delete(`/admin/training/categories/${categoryId}`);
+    return res.data;
+  },
+  getTrainingVideos: async (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') params.append(k, v);
+    });
+    const res = await api.get(`/admin/training/videos?${params.toString()}`);
+    return res.data;
+  },
+  createTrainingVideo: async (data) => {
+    const res = await api.post('/admin/training/videos', data);
+    return res.data;
+  },
+  updateTrainingVideo: async (videoId, data) => {
+    const res = await api.put(`/admin/training/videos/${videoId}`, data);
+    return res.data;
+  },
+  deleteTrainingVideo: async (videoId) => {
+    const res = await api.delete(`/admin/training/videos/${videoId}`);
+    return res.data;
+  },
+
+  // Documents Management
+  getDocumentCategories: async () => {
+    const res = await api.get('/admin/documents/categories');
+    return res.data;
+  },
+  createDocumentCategory: async (data) => {
+    const res = await api.post('/admin/documents/categories', data);
+    return res.data;
+  },
+  updateDocumentCategory: async (categoryId, data) => {
+    const res = await api.put(`/admin/documents/categories/${categoryId}`, data);
+    return res.data;
+  },
+  deleteDocumentCategory: async (categoryId) => {
+    const res = await api.delete(`/admin/documents/categories/${categoryId}`);
+    return res.data;
+  },
+  getDocuments: async (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') params.append(k, v);
+    });
+    const res = await api.get(`/admin/documents/documents?${params.toString()}`);
+    return res.data;
+  },
+  uploadDocument: async (data) => {
+    const form = new FormData();
+    Object.entries(data).forEach(([k, v]) => {
+      if (k === 'file') form.append('document', v);
+      else if (v !== undefined && v !== null) form.append(k, v);
+    });
+    const res = await api.post('/admin/documents/documents', form, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return res.data;
+  },
+  updateDocument: async (documentId, data) => {
+    const res = await api.put(`/admin/documents/documents/${documentId}`, data);
+    return res.data;
+  },
+  deleteDocument: async (documentId) => {
+    const res = await api.delete(`/admin/documents/documents/${documentId}`);
+    return res.data;
   }
 
 };

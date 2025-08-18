@@ -150,7 +150,7 @@ const AdminSerialNumbers = () => {
             <div className="card-body">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <QrCodeIcon className="h-8 w-8 text-blue-600" />
+                  <QrCodeIcon className="h-8 w-8 text-orange-600" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Serials</p>

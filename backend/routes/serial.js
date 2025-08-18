@@ -124,21 +124,22 @@ router.post('/add', protectInstaller, validateSerialNumber, async (req, res) => 
 
     await installer.updateProgress();
 
-    // Check if installer reached milestone (10 inverters)
-    if (installer.totalInverters === 10) {
+    // Check if installer reached milestone (1000 points)
+    if (installer.totalPoints >= 1000 && installer.totalPoints % 1000 === 0) {
+      const milestoneNumber = installer.totalPoints / 1000;
       // Create milestone payment
       await Payment.create({
         installer: installer._id,
         amount: 5000, // Example milestone bonus
         currency: 'PKR',
         paymentType: 'milestone',
-        description: `Milestone bonus for completing 10 inverter installations`,
-        milestoneReached: 10,
+        description: `Milestone bonus for completing ${installer.totalPoints} points (Milestone ${milestoneNumber})`,
+        milestoneReached: installer.totalPoints,
         status: 'pending'
       });
 
       // Send mock email notification
-      console.log(`EMAIL: Congratulations ${installer.name}! You've reached 10 inverters and are eligible for payment.`);
+      console.log(`EMAIL: Congratulations ${installer.name}! You've reached ${installer.totalPoints} points and are eligible for payment.`);
     }
 
     // Check for active promotions and update progress

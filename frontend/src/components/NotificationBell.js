@@ -96,7 +96,7 @@ const NotificationBell = () => {
       case 'payment_rejected':
         return 'text-red-600';
       case 'payment_comment':
-        return 'text-blue-600';
+        return 'text-orange-600';
       case 'promotion_created':
         return 'text-purple-600';
       default:
@@ -177,7 +177,7 @@ const NotificationBell = () => {
                     key={notification._id || notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors ${
-                      !notification.read ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                      !notification.read ? 'bg-orange-50 dark:bg-orange-900/20' : ''
                     }`}
                   >
                     <div className="flex items-start space-x-3">
@@ -198,7 +198,7 @@ const NotificationBell = () => {
                                 const notificationId = notification._id || notification.id;
                                 handleMarkAsRead(notificationId);
                               }}
-                              className="text-blue-600 hover:text-blue-700"
+                              className="text-orange-600 hover:text-orange-700"
                             >
                               <CheckIcon className="h-4 w-4" />
                             </button>

@@ -6,55 +6,79 @@ const documentDownloadSchema = new mongoose.Schema({
         ref: 'Document',
         required: true
     },
-    userId: {
+    installerId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-    },
-    sessionId: {
-        type: String // For anonymous users
-    },
-    ipAddress: {
-        type: String
-    },
-    userAgent: {
-        type: String
+        ref: 'Installer',
+        required: true
     },
     downloadedAt: {
         type: Date,
         default: Date.now
+    },
+    ipAddress: {
+        type: String,
+        required: true
+    },
+    userAgent: {
+        type: String
+    },
+    downloadSource: {
+        type: String,
+        enum: ['web', 'mobile', 'api'],
+        default: 'web'
     }
 }, {
     timestamps: true
 });
 
-// Indexes for efficient queries
-documentDownloadSchema.index({ documentId: 1, userId: 1 });
+// Indexes for performance
 documentDownloadSchema.index({ documentId: 1, downloadedAt: -1 });
-documentDownloadSchema.index({ userId: 1, downloadedAt: -1 });
+documentDownloadSchema.index({ installerId: 1, downloadedAt: -1 });
 documentDownloadSchema.index({ downloadedAt: -1 });
 
-// Static method to get document analytics
-documentDownloadSchema.statics.getDocumentAnalytics = async function(documentId, startDate, endDate) {
-    const pipeline = [
-        {
-            $match: {
-                documentId: new mongoose.Types.ObjectId(documentId),
-                downloadedAt: {
-                    $gte: startDate,
-                    $lte: endDate
-                }
-            }
-        },
+// Static method to get download statistics
+documentDownloadSchema.statics.getStats = async function(options = {}) {
+    const { 
+        documentId, 
+        installerId, 
+        startDate, 
+        endDate,
+        groupBy = 'day' 
+    } = options;
+
+    const matchQuery = {};
+    
+    if (documentId) matchQuery.documentId = documentId;
+    if (installerId) matchQuery.installerId = installerId;
+    
+    if (startDate || endDate) {
+        matchQuery.downloadedAt = {};
+        if (startDate) matchQuery.downloadedAt.$gte = new Date(startDate);
+        if (endDate) matchQuery.downloadedAt.$lte = new Date(endDate);
+    }
+
+    let groupFormat;
+    switch (groupBy) {
+        case 'hour':
+            groupFormat = { $dateToString: { format: "%Y-%m-%d %H:00", date: "$downloadedAt" } };
+            break;
+        case 'day':
+            groupFormat = { $dateToString: { format: "%Y-%m-%d", date: "$downloadedAt" } };
+            break;
+        case 'month':
+            groupFormat = { $dateToString: { format: "%Y-%m", date: "$downloadedAt" } };
+            break;
+        default:
+            groupFormat = { $dateToString: { format: "%Y-%m-%d", date: "$downloadedAt" } };
+    }
+
+    return this.aggregate([
+        { $match: matchQuery },
         {
             $group: {
-                _id: {
-                    $dateToString: {
-                        format: "%Y-%m-%d",
-                        date: "$downloadedAt"
-                    }
-                },
-                totalDownloads: { $sum: 1 },
-                uniqueUsers: { $addToSet: "$userId" }
+                _id: groupFormat,
+                count: { $sum: 1 },
+                uniqueUsers: { $addToSet: "$installerId" }
             }
         },
         {
@@ -62,46 +86,24 @@ documentDownloadSchema.statics.getDocumentAnalytics = async function(documentId,
                 uniqueUserCount: { $size: "$uniqueUsers" }
             }
         },
-        {
-            $project: {
-                uniqueUsers: 0
-            }
-        },
-        {
-            $sort: { _id: 1 }
-        }
-    ];
-    
-    return this.aggregate(pipeline);
+        { $project: { uniqueUsers: 0 } },
+        { $sort: { _id: 1 } }
+    ]);
 };
 
-// Static method to get user download history
-documentDownloadSchema.statics.getUserDownloadHistory = function(userId, page = 1, limit = 20) {
-    const skip = (page - 1) * limit;
-    
-    return this.find({ userId })
-        .populate('documentId', 'title fileType fileSize categoryId')
-        .sort({ downloadedAt: -1 })
-        .skip(skip)
-        .limit(limit);
-};
+// Static method to get top downloaded documents
+documentDownloadSchema.statics.getTopDocuments = function(limit = 10, days = 30) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
 
-// Static method to get popular downloads
-documentDownloadSchema.statics.getPopularDownloads = async function(startDate, endDate, limit = 10) {
-    const pipeline = [
-        {
-            $match: {
-                downloadedAt: {
-                    $gte: startDate,
-                    $lte: endDate
-                }
-            }
-        },
+    return this.aggregate([
+        { $match: { downloadedAt: { $gte: startDate } } },
         {
             $group: {
                 _id: "$documentId",
                 downloadCount: { $sum: 1 },
-                uniqueUsers: { $addToSet: "$userId" }
+                uniqueUsers: { $addToSet: "$installerId" },
+                lastDownload: { $max: "$downloadedAt" }
             }
         },
         {
@@ -109,6 +111,9 @@ documentDownloadSchema.statics.getPopularDownloads = async function(startDate, e
                 uniqueUserCount: { $size: "$uniqueUsers" }
             }
         },
+        { $project: { uniqueUsers: 0 } },
+        { $sort: { downloadCount: -1 } },
+        { $limit: limit },
         {
             $lookup: {
                 from: 'documents',
@@ -117,28 +122,17 @@ documentDownloadSchema.statics.getPopularDownloads = async function(startDate, e
                 as: 'document'
             }
         },
+        { $unwind: '$document' },
         {
-            $unwind: '$document'
-        },
-        {
-            $project: {
-                documentId: '$_id',
-                downloadCount: 1,
-                uniqueUserCount: 1,
-                title: '$document.title',
-                fileType: '$document.fileType',
-                categoryId: '$document.categoryId'
+            $lookup: {
+                from: 'documentcategories',
+                localField: 'document.categoryId',
+                foreignField: '_id',
+                as: 'category'
             }
         },
-        {
-            $sort: { downloadCount: -1 }
-        },
-        {
-            $limit: limit
-        }
-    ];
-    
-    return this.aggregate(pipeline);
+        { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } }
+    ]);
 };
 
 module.exports = mongoose.model('DocumentDownload', documentDownloadSchema);

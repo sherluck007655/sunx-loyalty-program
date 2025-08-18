@@ -2,20 +2,17 @@ const express = require('express');
 const router = express.Router();
 const TrainingCategory = require('../../models/TrainingCategory');
 const TrainingVideo = require('../../models/TrainingVideo');
-const VideoView = require('../../models/VideoView');
 const { protectAdmin } = require('../../middleware/auth');
 
 // Apply admin authentication to all routes
 router.use(protectAdmin);
 
-// TRAINING CATEGORIES MANAGEMENT
+// ==================== TRAINING CATEGORIES ====================
 
-// Get all training categories (including inactive)
+// Get all training categories
 router.get('/categories', async (req, res) => {
     try {
-        const categories = await TrainingCategory.find()
-            .sort({ sortOrder: 1, name: 1 })
-            .populate('createdBy updatedBy', 'name email');
+        const categories = await TrainingCategory.getActiveWithCounts();
         
         res.json({
             success: true,
@@ -25,7 +22,34 @@ router.get('/categories', async (req, res) => {
         console.error('Error fetching training categories:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch training categories'
+            message: 'Failed to fetch training categories',
+            error: error.message
+        });
+    }
+});
+
+// Get single training category
+router.get('/categories/:id', async (req, res) => {
+    try {
+        const category = await TrainingCategory.findById(req.params.id);
+        
+        if (!category) {
+            return res.status(404).json({
+                success: false,
+                message: 'Training category not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: category
+        });
+    } catch (error) {
+        console.error('Error fetching training category:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch training category',
+            error: error.message
         });
     }
 });
@@ -33,19 +57,25 @@ router.get('/categories', async (req, res) => {
 // Create new training category
 router.post('/categories', async (req, res) => {
     try {
-        const { name, description, icon, sortOrder } = req.body;
-        
-        const category = new TrainingCategory({
+        const {
             name,
             description,
             icon,
-            sortOrder,
-            createdBy: req.user.id,
-            updatedBy: req.user.id
+            color,
+            sortOrder
+        } = req.body;
+
+        const category = new TrainingCategory({
+            name,
+            description,
+            icon: icon || 'fas fa-play-circle',
+            color: color || '#ff831f',
+            sortOrder: sortOrder || 0,
+            createdBy: req.admin._id
         });
-        
+
         await category.save();
-        
+
         res.status(201).json({
             success: true,
             data: category,
@@ -60,40 +90,48 @@ router.post('/categories', async (req, res) => {
                 message: 'Category name already exists'
             });
         }
-        
+
         res.status(500).json({
             success: false,
-            message: 'Failed to create training category'
+            message: 'Failed to create training category',
+            error: error.message
         });
     }
 });
 
 // Update training category
-router.put('/categories/:categoryId', async (req, res) => {
+router.put('/categories/:id', async (req, res) => {
     try {
-        const { categoryId } = req.params;
-        const { name, description, icon, sortOrder, isActive } = req.body;
-        
-        const category = await TrainingCategory.findByIdAndUpdate(
-            categoryId,
-            {
-                name,
-                description,
-                icon,
-                sortOrder,
-                isActive,
-                updatedBy: req.user.id
-            },
-            { new: true, runValidators: true }
-        );
+        const {
+            name,
+            description,
+            icon,
+            color,
+            sortOrder,
+            isActive
+        } = req.body;
+
+        const category = await TrainingCategory.findById(req.params.id);
         
         if (!category) {
             return res.status(404).json({
                 success: false,
-                message: 'Category not found'
+                message: 'Training category not found'
             });
         }
+
+        // Update fields
+        if (name !== undefined) category.name = name;
+        if (description !== undefined) category.description = description;
+        if (icon !== undefined) category.icon = icon;
+        if (color !== undefined) category.color = color;
+        if (sortOrder !== undefined) category.sortOrder = sortOrder;
+        if (isActive !== undefined) category.isActive = isActive;
         
+        category.updatedBy = req.admin._id;
+
+        await category.save();
+
         res.json({
             success: true,
             data: category,
@@ -101,36 +139,49 @@ router.put('/categories/:categoryId', async (req, res) => {
         });
     } catch (error) {
         console.error('Error updating training category:', error);
+        
+        if (error.code === 11000) {
+            return res.status(400).json({
+                success: false,
+                message: 'Category name already exists'
+            });
+        }
+
         res.status(500).json({
             success: false,
-            message: 'Failed to update training category'
+            message: 'Failed to update training category',
+            error: error.message
         });
     }
 });
 
 // Delete training category
-router.delete('/categories/:categoryId', async (req, res) => {
+router.delete('/categories/:id', async (req, res) => {
     try {
-        const { categoryId } = req.params;
-        
-        // Check if category has videos
-        const videoCount = await TrainingVideo.countDocuments({ categoryId });
-        if (videoCount > 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Cannot delete category with existing videos'
-            });
-        }
-        
-        const category = await TrainingCategory.findByIdAndDelete(categoryId);
+        const category = await TrainingCategory.findById(req.params.id);
         
         if (!category) {
             return res.status(404).json({
                 success: false,
-                message: 'Category not found'
+                message: 'Training category not found'
             });
         }
-        
+
+        // Check if category has videos
+        const videoCount = await TrainingVideo.countDocuments({ 
+            categoryId: req.params.id,
+            isActive: true 
+        });
+
+        if (videoCount > 0) {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot delete category with ${videoCount} active videos. Please move or delete the videos first.`
+            });
+        }
+
+        await TrainingCategory.findByIdAndDelete(req.params.id);
+
         res.json({
             success: true,
             message: 'Training category deleted successfully'
@@ -139,63 +190,93 @@ router.delete('/categories/:categoryId', async (req, res) => {
         console.error('Error deleting training category:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to delete training category'
+            message: 'Failed to delete training category',
+            error: error.message
         });
     }
 });
 
-// TRAINING VIDEOS MANAGEMENT
+// ==================== TRAINING VIDEOS ====================
 
-// Get all training videos with filters
+// Get all training videos with filtering and pagination
 router.get('/videos', async (req, res) => {
     try {
-        const { 
-            page = 1, 
-            limit = 20, 
-            categoryId, 
-            isActive, 
+        const {
+            page = 1,
+            limit = 20,
+            categoryId,
             difficulty,
-            search 
+            platform,
+            search,
+            sortBy = 'createdAt',
+            sortOrder = 'desc'
         } = req.query;
-        
-        const query = {};
-        
-        if (categoryId) query.categoryId = categoryId;
-        if (isActive !== undefined) query.isActive = isActive === 'true';
-        if (difficulty) query.difficulty = difficulty;
-        if (search) {
-            query.$text = { $search: search };
-        }
-        
-        const skip = (page - 1) * limit;
-        
-        const [videos, total] = await Promise.all([
-            TrainingVideo.find(query)
-                .populate('categoryId', 'name slug')
-                .populate('createdBy updatedBy', 'name email')
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(parseInt(limit)),
-            TrainingVideo.countDocuments(query)
-        ]);
-        
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const sort = sortOrder === 'desc' ? -1 : 1;
+
+        const searchOptions = {
+            categoryId,
+            difficulty,
+            platform,
+            sortBy,
+            sortOrder: sort,
+            limit: parseInt(limit),
+            skip
+        };
+
+        const videos = await TrainingVideo.search(search, searchOptions);
+        const total = await TrainingVideo.countDocuments({ 
+            isActive: true,
+            ...(categoryId && { categoryId }),
+            ...(difficulty && { difficulty }),
+            ...(platform && { platform })
+        });
+
         res.json({
             success: true,
-            data: {
-                videos,
-                pagination: {
-                    page: parseInt(page),
-                    limit: parseInt(limit),
-                    total,
-                    pages: Math.ceil(total / limit)
-                }
+            data: videos,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total,
+                pages: Math.ceil(total / parseInt(limit))
             }
         });
     } catch (error) {
         console.error('Error fetching training videos:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch training videos'
+            message: 'Failed to fetch training videos',
+            error: error.message
+        });
+    }
+});
+
+// Get single training video
+router.get('/videos/:id', async (req, res) => {
+    try {
+        const video = await TrainingVideo.findById(req.params.id)
+            .populate('categoryId', 'name slug color')
+            .populate('uploadedBy', 'name email');
+        
+        if (!video) {
+            return res.status(404).json({
+                success: false,
+                message: 'Training video not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: video
+        });
+    } catch (error) {
+        console.error('Error fetching training video:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch training video',
+            error: error.message
         });
     }
 });
@@ -207,15 +288,14 @@ router.post('/videos', async (req, res) => {
             title,
             description,
             categoryId,
-            videoType,
             videoUrl,
-            tags,
-            difficulty,
             duration,
-            sortOrder,
+            difficulty,
+            language,
+            tags,
             isFeatured
         } = req.body;
-        
+
         // Verify category exists
         const category = await TrainingCategory.findById(categoryId);
         if (!category) {
@@ -224,122 +304,168 @@ router.post('/videos', async (req, res) => {
                 message: 'Invalid category'
             });
         }
-        
+
+        // Parse tags if provided
+        let parsedTags = [];
+        if (tags) {
+            try {
+                parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
+            } catch (e) {
+                parsedTags = [];
+            }
+        }
+
         const video = new TrainingVideo({
             title,
             description,
             categoryId,
-            videoType,
             videoUrl,
-            tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
-            difficulty,
             duration,
-            sortOrder,
-            isFeatured,
-            createdBy: req.user.id,
-            updatedBy: req.user.id
+            difficulty: difficulty || 'beginner',
+            language: language || 'english',
+            tags: parsedTags,
+            isFeatured: isFeatured === 'true' || isFeatured === true,
+            uploadedBy: req.admin._id
         });
-        
+
         await video.save();
-        
+
         // Update category video count
         await category.updateVideoCount();
-        
+
+        // Populate the response
+        const populatedVideo = await TrainingVideo.findById(video._id)
+            .populate('categoryId', 'name slug color')
+            .populate('uploadedBy', 'name email');
+
         res.status(201).json({
             success: true,
-            data: video,
+            data: populatedVideo,
             message: 'Training video created successfully'
         });
     } catch (error) {
         console.error('Error creating training video:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to create training video'
+            message: 'Failed to create training video',
+            error: error.message
         });
     }
 });
 
 // Update training video
-router.put('/videos/:videoId', async (req, res) => {
+router.put('/videos/:id', async (req, res) => {
     try {
-        const { videoId } = req.params;
         const {
             title,
             description,
             categoryId,
-            videoType,
             videoUrl,
-            tags,
-            difficulty,
             duration,
-            sortOrder,
+            difficulty,
+            language,
+            tags,
             isFeatured,
             isActive
         } = req.body;
-        
-        const video = await TrainingVideo.findByIdAndUpdate(
-            videoId,
-            {
-                title,
-                description,
-                categoryId,
-                videoType,
-                videoUrl,
-                tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
-                difficulty,
-                duration,
-                sortOrder,
-                isFeatured,
-                isActive,
-                updatedBy: req.user.id
-            },
-            { new: true, runValidators: true }
-        );
-        
+
+        const video = await TrainingVideo.findById(req.params.id);
+
         if (!video) {
             return res.status(404).json({
                 success: false,
-                message: 'Video not found'
+                message: 'Training video not found'
             });
         }
-        
+
+        // Verify category exists if changing
+        if (categoryId && categoryId !== video.categoryId.toString()) {
+            const category = await TrainingCategory.findById(categoryId);
+            if (!category) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid category'
+                });
+            }
+        }
+
+        // Parse tags if provided
+        let parsedTags = video.tags;
+        if (tags !== undefined) {
+            try {
+                parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
+            } catch (e) {
+                parsedTags = [];
+            }
+        }
+
+        // Update fields
+        if (title !== undefined) video.title = title;
+        if (description !== undefined) video.description = description;
+        if (categoryId !== undefined) video.categoryId = categoryId;
+        if (videoUrl !== undefined) video.videoUrl = videoUrl;
+        if (duration !== undefined) video.duration = duration;
+        if (difficulty !== undefined) video.difficulty = difficulty;
+        if (language !== undefined) video.language = language;
+        if (tags !== undefined) video.tags = parsedTags;
+        if (isFeatured !== undefined) video.isFeatured = isFeatured === 'true' || isFeatured === true;
+        if (isActive !== undefined) video.isActive = isActive === 'true' || isActive === true;
+
+        video.updatedBy = req.admin._id;
+
+        await video.save();
+
+        // Update category video counts if category changed
+        if (categoryId && categoryId !== video.categoryId.toString()) {
+            const oldCategory = await TrainingCategory.findById(video.categoryId);
+            const newCategory = await TrainingCategory.findById(categoryId);
+
+            if (oldCategory) await oldCategory.updateVideoCount();
+            if (newCategory) await newCategory.updateVideoCount();
+        }
+
+        // Populate the response
+        const populatedVideo = await TrainingVideo.findById(video._id)
+            .populate('categoryId', 'name slug color')
+            .populate('uploadedBy', 'name email');
+
         res.json({
             success: true,
-            data: video,
+            data: populatedVideo,
             message: 'Training video updated successfully'
         });
     } catch (error) {
         console.error('Error updating training video:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to update training video'
+            message: 'Failed to update training video',
+            error: error.message
         });
     }
 });
 
 // Delete training video
-router.delete('/videos/:videoId', async (req, res) => {
+router.delete('/videos/:id', async (req, res) => {
     try {
-        const { videoId } = req.params;
-        
-        const video = await TrainingVideo.findByIdAndDelete(videoId);
-        
+        const video = await TrainingVideo.findById(req.params.id);
+
         if (!video) {
             return res.status(404).json({
                 success: false,
-                message: 'Video not found'
+                message: 'Training video not found'
             });
         }
-        
+
+        const categoryId = video.categoryId;
+
+        await TrainingVideo.findByIdAndDelete(req.params.id);
+
         // Update category video count
-        const category = await TrainingCategory.findById(video.categoryId);
+        const category = await TrainingCategory.findById(categoryId);
         if (category) {
             await category.updateVideoCount();
         }
-        
-        // Delete related view records
-        await VideoView.deleteMany({ videoId });
-        
+
         res.json({
             success: true,
             message: 'Training video deleted successfully'
@@ -348,78 +474,88 @@ router.delete('/videos/:videoId', async (req, res) => {
         console.error('Error deleting training video:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to delete training video'
+            message: 'Failed to delete training video',
+            error: error.message
         });
     }
 });
 
-// Get video analytics
-router.get('/videos/:videoId/analytics', async (req, res) => {
+// Get training analytics
+router.get('/analytics', async (req, res) => {
     try {
-        const { videoId } = req.params;
-        const { startDate, endDate } = req.query;
+        const totalVideos = await TrainingVideo.countDocuments({ isActive: true });
+        const totalCategories = await TrainingCategory.countDocuments({ isActive: true });
+        const totalViews = await TrainingVideo.aggregate([
+            { $match: { isActive: true } },
+            { $group: { _id: null, totalViews: { $sum: '$viewCount' } } }
+        ]);
 
-        const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        const end = endDate ? new Date(endDate) : new Date();
+        const popularVideos = await TrainingVideo.getPopular(5);
+        const recentVideos = await TrainingVideo.find({ isActive: true })
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .populate('categoryId', 'name color');
 
-        const analytics = await VideoView.getVideoAnalytics(videoId, start, end);
-
-        res.json({
-            success: true,
-            data: analytics
-        });
-    } catch (error) {
-        console.error('Error fetching video analytics:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch video analytics'
-        });
-    }
-});
-
-// Get training overview statistics
-router.get('/stats', async (req, res) => {
-    try {
-        const [
-            totalCategories,
-            activeCategories,
-            totalVideos,
-            activeVideos,
-            totalViews,
-            recentViews
-        ] = await Promise.all([
-            TrainingCategory.countDocuments(),
-            TrainingCategory.countDocuments({ isActive: true }),
-            TrainingVideo.countDocuments(),
-            TrainingVideo.countDocuments({ isActive: true }),
-            VideoView.countDocuments(),
-            VideoView.countDocuments({
-                viewedAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
-            })
+        const categoryStats = await TrainingCategory.aggregate([
+            { $match: { isActive: true } },
+            {
+                $lookup: {
+                    from: 'trainingvideos',
+                    localField: '_id',
+                    foreignField: 'categoryId',
+                    as: 'videos'
+                }
+            },
+            {
+                $project: {
+                    name: 1,
+                    color: 1,
+                    videoCount: {
+                        $size: {
+                            $filter: {
+                                input: '$videos',
+                                cond: { $eq: ['$$this.isActive', true] }
+                            }
+                        }
+                    },
+                    totalViews: {
+                        $sum: {
+                            $map: {
+                                input: {
+                                    $filter: {
+                                        input: '$videos',
+                                        cond: { $eq: ['$$this.isActive', true] }
+                                    }
+                                },
+                                as: 'video',
+                                in: '$$video.viewCount'
+                            }
+                        }
+                    }
+                }
+            },
+            { $sort: { videoCount: -1 } }
         ]);
 
         res.json({
             success: true,
             data: {
-                categories: {
-                    total: totalCategories,
-                    active: activeCategories
+                overview: {
+                    totalVideos,
+                    totalCategories,
+                    totalViews: totalViews[0]?.totalViews || 0
                 },
-                videos: {
-                    total: totalVideos,
-                    active: activeVideos
-                },
-                views: {
-                    total: totalViews,
-                    recent: recentViews
-                }
+                popularVideos,
+                recentVideos,
+                categoryStats
             }
         });
     } catch (error) {
-        console.error('Error fetching training stats:', error);
+        console.error('Error fetching training analytics:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch training statistics'
+            message: 'Failed to fetch training analytics',
+            error: error.message
         });
     }
 });

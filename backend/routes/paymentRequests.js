@@ -119,10 +119,12 @@ router.post('/', protectInstaller, async (req, res) => {
     }
 
     // Create payment request
+    const pointValue = 50; // PKR 50 per point
     const paymentRequest = new PaymentRequest({
       installer: req.installer._id,
       pointsRequested,
-      pointValue: 50, // PKR 50 per point
+      amount: pointsRequested * pointValue, // Calculate amount
+      pointValue,
       serialNumbers: serialsForPayment,
       availablePointsAtRequest: totalPoints,
       bankDetails: {

@@ -198,13 +198,13 @@ class PasswordService {
       color = 'green';
     } else if (score >= 60) {
       strength = 'Good';
-      color = 'blue';
+      color = 'orange';
     } else if (score >= 40) {
       strength = 'Fair';
       color = 'yellow';
     } else if (score >= 20) {
       strength = 'Weak';
-      color = 'orange';
+      color = 'red';
     }
     
     return {

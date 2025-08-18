@@ -21,9 +21,14 @@ const ValidSerials = () => {
   const [newSerial, setNewSerial] = useState('');
   const [uploading, setUploading] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState('');
+  const [selectedBulkProduct, setSelectedBulkProduct] = useState('');
+  const [loadingProducts, setLoadingProducts] = useState(false);
 
   useEffect(() => {
     fetchValidSerials();
+    fetchProducts();
   }, []);
 
   const fetchValidSerials = async () => {
@@ -39,18 +44,39 @@ const ValidSerials = () => {
     }
   };
 
+  const fetchProducts = async () => {
+    try {
+      setLoadingProducts(true);
+      const response = await adminService.getProducts();
+      if (response.success) {
+        setProducts(response.data.filter(product => product.isActive));
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Failed to fetch products');
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
   const handleUpload = async () => {
     if (!csvData.trim()) {
       toast.error('Please enter CSV data');
       return;
     }
 
+    if (!selectedBulkProduct) {
+      toast.error('Please select a product for bulk upload');
+      return;
+    }
+
     try {
       setUploading(true);
-      const response = await adminService.uploadValidSerials(csvData);
+      const response = await adminService.uploadValidSerials(csvData, selectedBulkProduct);
       toast.success(response.message);
       setShowUploadModal(false);
       setCsvData('');
+      setSelectedBulkProduct('');
       fetchValidSerials();
     } catch (error) {
       toast.error(error.message || 'Failed to upload serial numbers');
@@ -65,12 +91,18 @@ const ValidSerials = () => {
       return;
     }
 
+    if (!selectedProduct) {
+      toast.error('Please select a product');
+      return;
+    }
+
     try {
       setAdding(true);
-      const response = await adminService.addValidSerial(newSerial);
+      const response = await adminService.addValidSerial(newSerial, '', selectedProduct);
       toast.success(response.message);
       setShowAddModal(false);
       setNewSerial('');
+      setSelectedProduct('');
       fetchValidSerials();
     } catch (error) {
       toast.error(error.message || 'Failed to add serial number');
@@ -134,7 +166,7 @@ const ValidSerials = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="flex items-center">
-              <DocumentTextIcon className="h-8 w-8 text-blue-600" />
+              <DocumentTextIcon className="h-8 w-8 text-orange-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
                   Total Valid Serials
@@ -207,6 +239,16 @@ const ValidSerials = () => {
                         </button>
                       </div>
                     </div>
+                    {serial.product && (
+                      <div className="mb-2">
+                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                          {serial.product.name} - {serial.product.model}
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          {serial.product.type} • {serial.product.points} points
+                        </p>
+                      </div>
+                    )}
                     {serial.notes && (
                       <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                         {serial.notes}
@@ -229,26 +271,48 @@ const ValidSerials = () => {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Upload Serial Numbers (CSV)
               </h3>
-              <div className="mb-4">
-                <label className="form-label">
-                  CSV Data (one serial number per line)
-                </label>
-                <textarea
-                  value={csvData}
-                  onChange={(e) => setCsvData(e.target.value)}
-                  className="form-input"
-                  rows="10"
-                  placeholder="SUNX001001&#10;SUNX001002&#10;SUNX001003&#10;..."
-                />
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                  Format: One serial number per line. Headers will be ignored.
-                </p>
+              <div className="space-y-4">
+                <div>
+                  <label className="form-label">Product *</label>
+                  <select
+                    value={selectedBulkProduct}
+                    onChange={(e) => setSelectedBulkProduct(e.target.value)}
+                    className="form-input"
+                    disabled={loadingProducts}
+                  >
+                    <option value="">Select a product for all serials...</option>
+                    {products.map((product) => (
+                      <option key={product._id} value={product._id}>
+                        {product.name} - {product.model} ({product.type}) - {product.points} pts
+                      </option>
+                    ))}
+                  </select>
+                  {loadingProducts && (
+                    <p className="text-sm text-gray-500 mt-1">Loading products...</p>
+                  )}
+                </div>
+                <div>
+                  <label className="form-label">
+                    CSV Data (one serial number per line)
+                  </label>
+                  <textarea
+                    value={csvData}
+                    onChange={(e) => setCsvData(e.target.value)}
+                    className="form-input"
+                    rows="10"
+                    placeholder="SUNX001001&#10;SUNX001002&#10;SUNX001003&#10;..."
+                  />
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                    Format: One serial number per line. Headers will be ignored. All serials will be assigned to the selected product.
+                  </p>
+                </div>
               </div>
               <div className="flex justify-end space-x-3">
                 <button
                   onClick={() => {
                     setShowUploadModal(false);
                     setCsvData('');
+                    setSelectedBulkProduct('');
                   }}
                   disabled={uploading}
                   className="btn-outline"
@@ -257,7 +321,7 @@ const ValidSerials = () => {
                 </button>
                 <button
                   onClick={handleUpload}
-                  disabled={uploading}
+                  disabled={uploading || !selectedBulkProduct}
                   className="btn-primary"
                 >
                   {uploading ? (
@@ -281,21 +345,43 @@ const ValidSerials = () => {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Add Serial Number
               </h3>
-              <div className="mb-4">
-                <label className="form-label">Serial Number</label>
-                <input
-                  type="text"
-                  value={newSerial}
-                  onChange={(e) => setNewSerial(e.target.value.toUpperCase())}
-                  className="form-input"
-                  placeholder="SUNX001001"
-                />
+              <div className="space-y-4">
+                <div>
+                  <label className="form-label">Serial Number</label>
+                  <input
+                    type="text"
+                    value={newSerial}
+                    onChange={(e) => setNewSerial(e.target.value.toUpperCase())}
+                    className="form-input"
+                    placeholder="SUNX001001"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Product *</label>
+                  <select
+                    value={selectedProduct}
+                    onChange={(e) => setSelectedProduct(e.target.value)}
+                    className="form-input"
+                    disabled={loadingProducts}
+                  >
+                    <option value="">Select a product...</option>
+                    {products.map((product) => (
+                      <option key={product._id} value={product._id}>
+                        {product.name} - {product.model} ({product.type}) - {product.points} pts
+                      </option>
+                    ))}
+                  </select>
+                  {loadingProducts && (
+                    <p className="text-sm text-gray-500 mt-1">Loading products...</p>
+                  )}
+                </div>
               </div>
-              <div className="flex justify-end space-x-3">
+              <div className="flex justify-end space-x-3 mt-6">
                 <button
                   onClick={() => {
                     setShowAddModal(false);
                     setNewSerial('');
+                    setSelectedProduct('');
                   }}
                   disabled={adding}
                   className="btn-outline"
@@ -304,7 +390,7 @@ const ValidSerials = () => {
                 </button>
                 <button
                   onClick={handleAddSerial}
-                  disabled={adding}
+                  disabled={adding || !selectedProduct}
                   className="btn-primary"
                 >
                   {adding ? (

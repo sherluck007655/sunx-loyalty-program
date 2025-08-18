@@ -88,11 +88,11 @@ const PendingApproval = ({ user }) => {
             </div>
 
             {user?.status === 'pending' && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
-                <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
+              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-orange-800 dark:text-orange-200 mb-2">
                   What happens next?
                 </h3>
-                <ul className="text-sm text-blue-600 dark:text-blue-300 space-y-1">
+                <ul className="text-sm text-orange-600 dark:text-orange-300 space-y-1">
                   <li>• Admin will review your application</li>
                   <li>• You'll receive an email notification</li>
                   <li>• Once approved, you can start adding serial numbers</li>

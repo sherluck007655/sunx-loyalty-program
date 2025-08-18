@@ -162,7 +162,7 @@ router.post('/request', protectInstaller, async (req, res) => {
     if (!req.installer.isEligibleForPayment) {
       return res.status(400).json({
         success: false,
-        message: 'You are not eligible for payment yet. Complete 10 inverter installations first.'
+        message: 'You are not eligible for payment yet. You need at least 1000 points to request payment.'
       });
     }
 

@@ -60,7 +60,7 @@ const PromotionDetails = () => {
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      active: { color: 'bg-blue-100 text-blue-800', text: 'Active' },
+      active: { color: 'bg-orange-100 text-orange-800', text: 'Active' },
       completed: { color: 'bg-green-100 text-green-800', text: 'Completed' },
       expired: { color: 'bg-gray-100 text-gray-800', text: 'Expired' }
     };
@@ -76,7 +76,7 @@ const PromotionDetails = () => {
 
   const getProgressColor = (percentage) => {
     if (percentage >= 100) return 'bg-green-500';
-    if (percentage >= 75) return 'bg-blue-500';
+    if (percentage >= 75) return 'bg-orange-500';
     if (percentage >= 50) return 'bg-yellow-500';
     return 'bg-gray-300';
   };
@@ -86,7 +86,7 @@ const PromotionDetails = () => {
 
     const statusConfig = {
       pending: { color: 'bg-yellow-100 text-yellow-800', text: 'Pending' },
-      approved: { color: 'bg-blue-100 text-blue-800', text: 'Approved' },
+      approved: { color: 'bg-orange-100 text-orange-800', text: 'Approved' },
       paid: { color: 'bg-green-100 text-green-800', text: 'Paid' },
       rejected: { color: 'bg-red-100 text-red-800', text: 'Rejected' }
     };

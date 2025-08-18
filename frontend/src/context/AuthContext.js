@@ -68,7 +68,7 @@ const initialState = {
   user: null,
   token: null,
   userType: null, // 'installer' or 'admin'
-  loading: false,
+  loading: true, // Start with loading true to check for existing auth
   error: null
 };
 
@@ -88,13 +88,16 @@ export const AuthProvider = ({ children }) => {
           type: 'LOGIN_SUCCESS',
           payload: { user, token, userType }
         });
-        
+
         // Set token in axios defaults
         authService.setAuthToken(token);
       } catch (error) {
         console.error('Error parsing stored user data:', error);
         logout();
       }
+    } else {
+      // No existing auth found, set loading to false
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, []);
 
@@ -114,9 +117,24 @@ export const AuthProvider = ({ children }) => {
       }
 
       console.log('API response:', response);
+
+      // Check if login was successful
+      if (!response.success) {
+        throw new Error(response.message || 'Login failed');
+      }
+
       const { data } = response;
+      if (!data) {
+        throw new Error('Invalid response format');
+      }
+
       const user = type === 'installer' ? data.installer : data.admin;
       const { token } = data;
+
+      if (!user || !token) {
+        throw new Error('Invalid credentials or missing data');
+      }
+
       console.log('Extracted user and token:', { user, token });
 
       // Store in localStorage
@@ -135,12 +153,12 @@ export const AuthProvider = ({ children }) => {
       return response;
     } catch (error) {
       console.error('❌ AuthContext login error:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Login failed';
+      const errorMessage = error.response?.data?.message || error.message || 'Invalid username or password';
       dispatch({
         type: 'LOGIN_FAILURE',
         payload: errorMessage
       });
-      throw error;
+      throw new Error(errorMessage);
     }
   };
 

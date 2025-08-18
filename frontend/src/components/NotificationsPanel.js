@@ -100,7 +100,7 @@ const NotificationsPanel = ({ isOpen, onClose }) => {
       case 'promotion_reward':
         return 'text-purple-600 bg-purple-100 dark:bg-purple-900/20';
       case 'comment_added':
-        return 'text-blue-600 bg-blue-100 dark:bg-blue-900/20';
+        return 'text-orange-600 bg-orange-100 dark:bg-orange-900/20';
       case 'system_alert':
         return 'text-orange-600 bg-orange-100 dark:bg-orange-900/20';
       default:
@@ -225,7 +225,7 @@ const NotificationsPanel = ({ isOpen, onClose }) => {
                     <div
                       key={notification.id}
                       className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
-                        !notification.read ? 'bg-blue-50 dark:bg-blue-900/10' : ''
+                        !notification.read ? 'bg-orange-50 dark:bg-orange-900/10' : ''
                       }`}
                     >
                       <div className="flex items-start space-x-3">

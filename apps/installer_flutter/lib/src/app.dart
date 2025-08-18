@@ -7,7 +7,8 @@ class SunXApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.fromSeed(seedColor: const Color(0xFFFF6B00));
+    final colorScheme =
+        ColorScheme.fromSeed(seedColor: const Color(0xFFFF831F));
     final theme = ThemeData(
       colorScheme: colorScheme,
       useMaterial3: true,
@@ -29,4 +30,3 @@ class SunXApp extends StatelessWidget {
     );
   }
 }
-

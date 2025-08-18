@@ -229,10 +229,47 @@ const generateToken = (id, type) => {
   );
 };
 
+// Optional auth: tries to read JWT if present but does not block when missing/invalid
+const optionalAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization || '';
+    if (authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      const jwtSecret = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+      const decoded = jwt.verify(token, jwtSecret);
+      // Set a minimal user object consumed by some routes
+      req.user = { id: decoded.id, type: decoded.type };
+    }
+  } catch (e) {
+    // Ignore errors and proceed unauthenticated
+  } finally {
+    next();
+  }
+};
+
+// Generic authenticate token (non-role-specific)
+const authenticateToken = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization || '';
+    if (!authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'Access denied. No token provided.' });
+    }
+    const token = authHeader.split(' ')[1];
+    const jwtSecret = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+    const decoded = jwt.verify(token, jwtSecret);
+    req.user = { id: decoded.id, type: decoded.type };
+    next();
+  } catch (e) {
+    return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+  }
+};
+
 module.exports = {
   protectInstaller,
   protectAdmin,
   checkPermission,
   requireApproved,
-  generateToken
+  generateToken,
+  optionalAuth,
+  authenticateToken
 };

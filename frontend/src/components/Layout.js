@@ -19,7 +19,8 @@ import {
   MoonIcon,
   ArrowRightOnRectangleIcon,
   PlayIcon,
-  FolderArrowDownIcon
+  FolderArrowDownIcon,
+  CubeIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -53,7 +54,7 @@ const Layout = ({ children, title }) => {
     { name: 'Payments', href: '/payments', icon: CreditCardIcon },
     { name: 'Promotions', href: '/promotions', icon: GiftIcon },
     { name: 'Training', href: '/training', icon: PlayIcon },
-    { name: 'Downloads', href: '/downloads', icon: FolderArrowDownIcon },
+    { name: 'Documents', href: '/documents', icon: FolderArrowDownIcon },
   ];
 
   // Navigation items for admin
@@ -66,9 +67,26 @@ const Layout = ({ children, title }) => {
     { name: 'Payments', href: '/admin/payments', icon: CreditCardIcon },
     { name: 'Serial Numbers', href: '/admin/serials', icon: DocumentTextIcon },
     { name: 'Valid Serials', href: '/admin/valid-serials', icon: DocumentTextIcon },
+    { name: 'Products', href: '/admin/products', icon: CubeIcon },
     { name: 'Promotions', href: '/admin/promotions', icon: GiftIcon },
-    { name: 'Training', href: '/training', icon: PlayIcon },
-    { name: 'Downloads', href: '/downloads', icon: FolderArrowDownIcon },
+    {
+      name: 'Training',
+      icon: PlayIcon,
+      submenu: [
+        { name: 'All Videos', href: '/admin/training/videos' },
+        { name: 'Categories', href: '/admin/training/categories' },
+        { name: 'Add Video', href: '/admin/training/videos/add' }
+      ]
+    },
+    {
+      name: 'Documents',
+      icon: FolderArrowDownIcon,
+      submenu: [
+        { name: 'All Documents', href: '/admin/documents' },
+        { name: 'Categories', href: '/admin/documents/categories' },
+        { name: 'Upload Document', href: '/admin/documents/upload' }
+      ]
+    },
     { name: 'Activities', href: '/admin/activities', icon: ClockIcon },
     { name: 'Backup', href: '/admin/backup', icon: CloudArrowDownIcon },
     { name: 'Settings', href: '/admin/settings', icon: CogIcon },
@@ -103,23 +121,56 @@ const Layout = ({ children, title }) => {
           </div>
           <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
             {navigation.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={cn(
-                    'group flex items-center px-4 py-3 text-base font-medium rounded-lg transition-colors touch-manipulation',
-                    isActive
-                      ? 'bg-primary/10 text-primary border-r-2 border-primary'
-                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                  )}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <item.icon className="mr-4 h-6 w-6 flex-shrink-0" />
-                  <span className="text-base">{item.name}</span>
-                </Link>
-              );
+              if (item.submenu) {
+                // Handle submenu items (admin Documents)
+                return (
+                  <div key={item.name} className="space-y-1">
+                    <div className="flex items-center px-4 py-3 text-base font-medium text-muted-foreground">
+                      <item.icon className="mr-4 h-6 w-6 flex-shrink-0" />
+                      <span className="text-base">{item.name}</span>
+                    </div>
+                    <div className="ml-8 space-y-1">
+                      {item.submenu.map((subItem) => {
+                        const isActive = location.pathname === subItem.href;
+                        return (
+                          <Link
+                            key={subItem.name}
+                            to={subItem.href}
+                            className={cn(
+                              'block px-4 py-2 text-sm font-medium rounded-lg transition-colors touch-manipulation',
+                              isActive
+                                ? 'bg-primary/10 text-primary border-r-2 border-primary'
+                                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                            )}
+                            onClick={() => setSidebarOpen(false)}
+                          >
+                            {subItem.name}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              } else {
+                // Handle regular navigation items
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={cn(
+                      'group flex items-center px-4 py-3 text-base font-medium rounded-lg transition-colors touch-manipulation',
+                      isActive
+                        ? 'bg-primary/10 text-primary border-r-2 border-primary'
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    )}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <item.icon className="mr-4 h-6 w-6 flex-shrink-0" />
+                    <span className="text-base">{item.name}</span>
+                  </Link>
+                );
+              }
             })}
           </nav>
           <div className="border-t p-4">
@@ -164,22 +215,54 @@ const Layout = ({ children, title }) => {
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={cn(
-                    'group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                    isActive
-                      ? 'bg-primary/10 text-primary border-r-2 border-primary'
-                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                  )}
-                >
-                  <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
-                  {item.name}
-                </Link>
-              );
+              if (item.submenu) {
+                // Handle submenu items (admin Documents)
+                return (
+                  <div key={item.name} className="space-y-1">
+                    <div className="flex items-center px-3 py-2 text-sm font-medium text-muted-foreground">
+                      <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
+                      {item.name}
+                    </div>
+                    <div className="ml-6 space-y-1">
+                      {item.submenu.map((subItem) => {
+                        const isActive = location.pathname === subItem.href;
+                        return (
+                          <Link
+                            key={subItem.name}
+                            to={subItem.href}
+                            className={cn(
+                              'block px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                              isActive
+                                ? 'bg-primary/10 text-primary border-r-2 border-primary'
+                                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                            )}
+                          >
+                            {subItem.name}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              } else {
+                // Handle regular navigation items
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={cn(
+                      'group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                      isActive
+                        ? 'bg-primary/10 text-primary border-r-2 border-primary'
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    )}
+                  >
+                    <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
+                    {item.name}
+                  </Link>
+                );
+              }
             })}
           </nav>
           <div className="border-t p-4">

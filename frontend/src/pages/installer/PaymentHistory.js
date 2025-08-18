@@ -333,7 +333,7 @@ Your trusted partner in solar energy solutions`;
     const statusConfig = {
       pending: { color: 'bg-yellow-100 text-yellow-800', icon: ClockIcon },
       approved: { color: 'bg-green-100 text-green-800', icon: CheckCircleIcon },
-      paid: { color: 'bg-blue-100 text-blue-800', icon: CheckCircleIcon },
+      paid: { color: 'bg-orange-100 text-orange-800', icon: CheckCircleIcon },
       rejected: { color: 'bg-red-100 text-red-800', icon: XCircleIcon },
       cancelled: { color: 'bg-gray-100 text-gray-800', icon: XCircleIcon }
     };
@@ -431,7 +431,7 @@ Your trusted partner in solar energy solutions`;
             <div className="card-body">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <CheckCircleIcon className="h-8 w-8 text-blue-500" />
+                  <CheckCircleIcon className="h-8 w-8 text-orange-500" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
@@ -779,7 +779,7 @@ Your trusted partner in solar energy solutions`;
                         </h3>
                         <div className="mt-2 text-sm text-yellow-700 dark:text-yellow-300">
                           <ul className="list-disc list-inside space-y-1">
-                            <li>You must have completed at least 10 inverter installations</li>
+                            <li>You must have earned at least 1000 points</li>
                             <li>Your bank details must be updated in your profile</li>
                             <li>You cannot have any pending payment requests</li>
                           </ul>

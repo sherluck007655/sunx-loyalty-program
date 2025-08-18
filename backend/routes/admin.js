@@ -5,13 +5,15 @@ const Payment = require('../models/Payment');
 const Promotion = require('../models/Promotion');
 const SerialNumber = require('../models/SerialNumber');
 const ValidSerial = require('../models/ValidSerial');
+const Product = require('../models/Product');
 const Admin = require('../models/Admin');
 const { protectAdmin, checkPermission } = require('../middleware/auth');
 const { validatePromotion } = require('../middleware/validation');
+const XLSX = require('xlsx');
 
 // Import admin sub-routes
-const adminTrainingRoutes = require('./admin/training');
-// const adminDocumentsRoutes = require('./admin/documents'); // Temporarily disabled
+const adminProductRoutes = require('./admin/products');
+const adminDocumentRoutes = require('./admin/documents');
 
 // @desc    Get admin dashboard data
 // @route   GET /api/admin/dashboard
@@ -71,6 +73,29 @@ router.get('/dashboard', protectAdmin, async (req, res) => {
       endDate: { $lt: new Date() }
     });
 
+    // Get product statistics
+    const totalProducts = await Product.countDocuments();
+    const activeProducts = await Product.countDocuments({ isActive: true });
+    const productsByType = await Product.aggregate([
+      {
+        $group: {
+          _id: '$type',
+          count: { $sum: 1 },
+          totalPoints: { $sum: '$points' }
+        }
+      }
+    ]);
+    const totalProductPoints = await Product.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalPoints: { $sum: '$points' },
+          averagePoints: { $avg: '$points' }
+        }
+      }
+    ]);
+    const avgProductPoints = totalProductPoints.length > 0 ? Math.round(totalProductPoints[0].averagePoints) : 0;
+
     // Get recent activities
     const recentInstallers = await Installer.find()
       .sort({ createdAt: -1 })
@@ -129,6 +154,13 @@ router.get('/dashboard', protectAdmin, async (req, res) => {
     const pendingPaymentPercentage = totalPayments > 0 ? Math.round((pendingPayments / totalPayments) * 100) : 0;
 
     console.log('✅ Admin dashboard: Stats calculated successfully');
+    console.log('🔍 Dashboard stats being returned:', {
+      totalProducts,
+      activeProducts,
+      totalInstallers,
+      totalSerials,
+      totalPayments
+    });
 
     // Return comprehensive dashboard data
     res.json({
@@ -167,6 +199,13 @@ router.get('/dashboard', protectAdmin, async (req, res) => {
           active: activePromotions,
           total: totalPromotions,
           expired: expiredPromotions
+        },
+        products: {
+          total: totalProducts,
+          active: activeProducts,
+          inactive: totalProducts - activeProducts,
+          averagePoints: avgProductPoints,
+          byType: productsByType
         },
         overview: {
           totalPaidAmount: paidAmount,
@@ -279,6 +318,85 @@ router.get('/installers', protectAdmin, checkPermission('canManageInstallers'), 
     res.status(500).json({
       success: false,
       message: 'Failed to get installers',
+      error: error.message
+    });
+  }
+});
+
+// @desc    Export installers to Excel
+// @route   GET /api/admin/installers/export
+// @access  Private (Admin)
+router.get('/installers/export', protectAdmin, checkPermission('canManageInstallers'), async (req, res) => {
+  try {
+    console.log('📊 Starting installer Excel export...');
+
+    // Get all installers from database
+    const installers = await Installer.find({})
+      .select('-password') // Exclude password for security
+      .sort({ createdAt: -1 });
+
+    console.log(`📋 Found ${installers.length} installers to export`);
+
+    // Prepare data for Excel
+    const excelData = installers.map((installer, index) => ({
+      'S.No': index + 1,
+      'Name': installer.name || '',
+      'Email': installer.email || '',
+      'Phone': installer.phone || '',
+      'Address': installer.address || '',
+      'City': installer.city || '',
+      'State': installer.state || '',
+      'ZIP Code': installer.zipCode || '',
+      'Status': installer.status || 'pending',
+      'Registration Date': installer.createdAt ? new Date(installer.createdAt).toLocaleDateString() : '',
+      'Last Updated': installer.updatedAt ? new Date(installer.updatedAt).toLocaleDateString() : ''
+    }));
+
+    // Create workbook and worksheet
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+    // Set column widths for better formatting
+    const columnWidths = [
+      { wch: 8 },  // S.No
+      { wch: 20 }, // Name
+      { wch: 25 }, // Email
+      { wch: 15 }, // Phone
+      { wch: 30 }, // Address
+      { wch: 15 }, // City
+      { wch: 15 }, // State
+      { wch: 12 }, // ZIP Code
+      { wch: 12 }, // Status
+      { wch: 15 }, // Registration Date
+      { wch: 15 }  // Last Updated
+    ];
+    worksheet['!cols'] = columnWidths;
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Installers');
+
+    // Generate Excel buffer
+    const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    // Generate filename with current date
+    const currentDate = new Date().toISOString().split('T')[0];
+    const filename = `SunX_Installers_${currentDate}.xlsx`;
+
+    // Set response headers for file download
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', excelBuffer.length);
+
+    console.log(`✅ Excel export completed: ${filename}`);
+
+    // Send the Excel file
+    res.send(excelBuffer);
+
+  } catch (error) {
+    console.error('❌ Excel export error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to export installers to Excel',
       error: error.message
     });
   }
@@ -941,7 +1059,8 @@ router.get('/valid-serials', protectAdmin, async (req, res) => {
       .skip(skip)
       .limit(limit)
       .populate('addedBy', 'name email')
-      .populate('usedBy', 'name email loyaltyCardId');
+      .populate('usedBy', 'name email loyaltyCardId')
+      .populate('product', 'name model type points');
 
     const total = await ValidSerial.countDocuments(query);
     const availableCount = await ValidSerial.getAvailableCount();
@@ -1062,13 +1181,25 @@ router.post('/valid-serials', protectAdmin, async (req, res) => {
 // @access  Private (Admin)
 router.post('/valid-serials/upload', protectAdmin, async (req, res) => {
   try {
-    const { csvData } = req.body;
+    const { csvData, productId } = req.body;
 
     if (!csvData || !csvData.trim()) {
       return res.status(400).json({
         success: false,
         message: 'CSV data is required'
       });
+    }
+
+    // Validate product if provided
+    let product = null;
+    if (productId) {
+      product = await Product.findById(productId);
+      if (!product) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid product selected'
+        });
+      }
     }
 
     // Parse CSV data (simple comma-separated or line-separated)
@@ -1102,11 +1233,18 @@ router.post('/valid-serials/upload', protectAdmin, async (req, res) => {
           continue;
         }
 
-        await ValidSerial.create({
+        const validSerialData = {
           serialNumber,
           addedBy: req.admin._id,
           notes: 'Bulk upload'
-        });
+        };
+
+        if (product) {
+          validSerialData.product = product._id;
+          validSerialData.pointsAwarded = product.points;
+        }
+
+        await ValidSerial.create(validSerialData);
 
         results.added++;
       } catch (error) {
@@ -1124,6 +1262,53 @@ router.post('/valid-serials/upload', protectAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to upload valid serial numbers',
+      error: error.message
+    });
+  }
+});
+
+// @desc    Delete valid serial number
+// @route   DELETE /api/admin/valid-serials/:serialNumber
+// @access  Private (Admin)
+router.delete('/valid-serials/:serialNumber', protectAdmin, async (req, res) => {
+  try {
+    const { serialNumber } = req.params;
+    console.log('🔍 Attempting to delete valid serial:', serialNumber);
+
+    // Find the valid serial
+    const validSerial = await ValidSerial.findOne({
+      serialNumber: serialNumber.toUpperCase()
+    });
+
+    if (!validSerial) {
+      console.log('❌ Valid serial not found:', serialNumber);
+      return res.status(404).json({
+        success: false,
+        message: 'Serial number not found'
+      });
+    }
+
+    // Check if the serial has been used
+    if (validSerial.isUsed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete a serial number that has already been used'
+      });
+    }
+
+    // Delete the valid serial
+    await ValidSerial.findByIdAndDelete(validSerial._id);
+    console.log('✅ Valid serial deleted successfully:', serialNumber);
+
+    res.json({
+      success: true,
+      message: 'Serial number deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete valid serial error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete serial number',
       error: error.message
     });
   }
@@ -1295,8 +1480,171 @@ router.delete('/payments/:id', protectAdmin, checkPermission('canManagePayments'
   }
 });
 
+// @desc    Create database backup
+// @route   POST /api/admin/backup/create
+// @access  Private (Admin)
+router.post('/backup/create', protectAdmin, checkPermission('canManageAdmins'), async (req, res) => {
+  try {
+    const { type = 'manual', description = 'Manual backup' } = req.body;
+
+    // Get all collections data
+    const backupData = {
+      metadata: {
+        version: '1.0',
+        timestamp: new Date().toISOString(),
+        type,
+        description,
+        createdBy: req.admin.email
+      },
+      data: {
+        installers: await Installer.find({}).select('+password'), // Explicitly include password for proper restore
+        payments: await Payment.find({}),
+        promotions: await Promotion.find({}),
+        serialNumbers: await SerialNumber.find({}),
+        validSerials: await ValidSerial.find({}),
+        products: await Product.find({}),
+        admins: await Admin.find({}).select('-password') // Still exclude admin passwords for security
+      }
+    };
+
+    // Calculate backup size
+    const backupString = JSON.stringify(backupData);
+    backupData.metadata.size = Buffer.byteLength(backupString, 'utf8');
+    backupData.metadata.id = `backup_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    res.json({
+      success: true,
+      message: 'Backup created successfully',
+      data: backupData
+    });
+  } catch (error) {
+    console.error('Backup creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create backup',
+      error: error.message
+    });
+  }
+});
+
+// @desc    Restore from backup
+// @route   POST /api/admin/backup/restore
+// @access  Private (Admin)
+router.post('/backup/restore', protectAdmin, checkPermission('canManageAdmins'), async (req, res) => {
+  try {
+    const { backupData } = req.body;
+
+    if (!backupData || !backupData.data) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid backup data'
+      });
+    }
+
+    const results = {
+      installers: 0,
+      payments: 0,
+      promotions: 0,
+      serialNumbers: 0,
+      validSerials: 0,
+      products: 0,
+      admins: 0
+    };
+
+    // Restore installers (excluding current admin)
+    if (backupData.data.installers) {
+      await Installer.deleteMany({});
+
+      // Process installers one by one to ensure proper document structure
+      let restoredCount = 0;
+      for (const installerData of backupData.data.installers) {
+        try {
+          // Remove the _id to let Mongoose generate a new one
+          const { _id, __v, ...cleanInstallerData } = installerData;
+
+          // Ensure we have a password (already hashed from backup)
+          if (!cleanInstallerData.password) {
+            // Set a default hashed password if missing
+            cleanInstallerData.password = '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBdkFkGy/FHjxm'; // 'admin123' hashed
+          }
+
+          // Create new installer document with proper Mongoose handling
+          const installer = new Installer(cleanInstallerData);
+
+          // Skip password hashing since password is already hashed from backup
+          installer.$skipPasswordHashing = true;
+
+          // Save the installer
+          await installer.save({ validateBeforeSave: true });
+          restoredCount++;
+
+          console.log(`✅ Restored installer: ${installer.email}`);
+        } catch (error) {
+          console.error(`❌ Failed to restore installer ${installerData.email}:`, error.message);
+        }
+      }
+
+      results.installers = restoredCount;
+    }
+
+    // Restore payments
+    if (backupData.data.payments) {
+      await Payment.deleteMany({});
+      const payments = await Payment.insertMany(backupData.data.payments);
+      results.payments = payments.length;
+    }
+
+    // Restore promotions
+    if (backupData.data.promotions) {
+      await Promotion.deleteMany({});
+      const promotions = await Promotion.insertMany(backupData.data.promotions);
+      results.promotions = promotions.length;
+    }
+
+    // Restore serial numbers
+    if (backupData.data.serialNumbers) {
+      await SerialNumber.deleteMany({});
+      const serials = await SerialNumber.insertMany(backupData.data.serialNumbers);
+      results.serialNumbers = serials.length;
+    }
+
+    // Restore valid serials
+    if (backupData.data.validSerials) {
+      await ValidSerial.deleteMany({});
+      const validSerials = await ValidSerial.insertMany(backupData.data.validSerials);
+      results.validSerials = validSerials.length;
+    }
+
+    // Restore products
+    if (backupData.data.products) {
+      await Product.deleteMany({});
+      const products = await Product.insertMany(backupData.data.products);
+      results.products = products.length;
+    }
+
+    // Note: We don't restore admins to prevent locking out current admin
+
+    res.json({
+      success: true,
+      message: 'Backup restored successfully',
+      data: {
+        restoredAt: new Date().toISOString(),
+        restoredBy: req.admin.email,
+        results
+      }
+    });
+  } catch (error) {
+    console.error('Backup restore error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to restore backup',
+      error: error.message
+    });
+  }
+});
+
 // Mount admin sub-routes
-router.use('/training', adminTrainingRoutes);
-// router.use('/documents', adminDocumentsRoutes); // Temporarily disabled
+router.use('/products', adminProductRoutes);
+router.use('/documents', adminDocumentRoutes);
 
 module.exports = router;

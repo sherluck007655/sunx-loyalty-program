@@ -138,7 +138,7 @@ const Notifications = () => {
   const getNotificationColor = (type) => {
     switch (type) {
       case 'new_message':
-        return 'text-blue-600 bg-blue-100 dark:bg-blue-900/20';
+        return 'text-orange-600 bg-orange-100 dark:bg-orange-900/20';
       case 'payment_request':
         return 'text-green-600 bg-green-100 dark:bg-green-900/20';
       case 'payment_comment':
@@ -277,7 +277,7 @@ const Notifications = () => {
                       key={notification.id}
                       onClick={() => handleNotificationClick(notification)}
                       className={`flex items-start space-x-4 p-4 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                        !notification.read ? 'bg-blue-50 dark:bg-blue-900/10 border-l-4 border-primary-500' : 'bg-gray-50 dark:bg-gray-800'
+                        !notification.read ? 'bg-orange-50 dark:bg-orange-900/10 border-l-4 border-primary-500' : 'bg-gray-50 dark:bg-gray-800'
                       }`}
                     >
                       {/* Icon */}

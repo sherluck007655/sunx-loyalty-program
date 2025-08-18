@@ -183,9 +183,9 @@ const NewChatModal = ({ isOpen, onClose, onChatCreated, currentUser }) => {
                       >
                         <div className="flex items-center space-x-3">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            user.type === 'admin' 
-                              ? 'bg-gradient-to-r from-purple-500 to-purple-600' 
-                              : 'bg-gradient-to-r from-blue-500 to-blue-600'
+                            user.type === 'admin'
+                              ? 'bg-gradient-to-r from-purple-500 to-purple-600'
+                              : 'bg-gradient-to-r from-orange-500 to-orange-600'
                           }`}>
                             <span className="text-white font-medium text-sm">
                               {user.name.charAt(0)}

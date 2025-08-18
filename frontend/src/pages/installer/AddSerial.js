@@ -23,7 +23,8 @@ const AddSerial = () => {
   const [serialValidation, setSerialValidation] = useState({
     isValid: null,
     isChecking: false,
-    message: ''
+    message: '',
+    product: null
   });
 
   const {
@@ -46,7 +47,7 @@ const AddSerial = () => {
     const checkSerial = async () => {
       if (serialNumber && serialNumber.length >= 6) {
         setCheckingSerial(true);
-        setSerialValidation({ isValid: null, isChecking: true, message: 'Checking...' });
+        setSerialValidation({ isValid: null, isChecking: true, message: 'Checking...', product: null });
 
         try {
           // Check if serial exists (already registered)
@@ -58,21 +59,23 @@ const AddSerial = () => {
           setSerialValidation({
             isValid: validityResponse.data.isValid,
             isChecking: false,
-            message: validityResponse.data.message
+            message: validityResponse.data.message,
+            product: validityResponse.data.product || null
           });
         } catch (error) {
           console.error('Error checking serial:', error);
           setSerialValidation({
             isValid: false,
             isChecking: false,
-            message: 'Error checking serial number'
+            message: 'Error checking serial number',
+            product: null
           });
         } finally {
           setCheckingSerial(false);
         }
       } else {
         setSerialExists(null);
-        setSerialValidation({ isValid: null, isChecking: false, message: '' });
+        setSerialValidation({ isValid: null, isChecking: false, message: '', product: null });
       }
     };
 
@@ -260,9 +263,22 @@ const AddSerial = () => {
                   <p className="form-error">{serialValidation.message}</p>
                 )}
                 {serialStatus === 'available' && (
-                  <p className="text-sm text-green-600 mt-1">
-                    ✓ Serial number is valid and available
-                  </p>
+                  <div className="mt-2">
+                    <p className="text-sm text-green-600">
+                      ✓ Serial number is valid and available
+                    </p>
+                    {serialValidation.product && (
+                      <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
+                        <h4 className="text-sm font-medium text-green-800 mb-1">Product Information</h4>
+                        <div className="text-sm text-green-700">
+                          <p><span className="font-medium">Product:</span> {serialValidation.product.name}</p>
+                          <p><span className="font-medium">Model:</span> {serialValidation.product.model}</p>
+                          <p><span className="font-medium">Type:</span> {serialValidation.product.type}</p>
+                          <p><span className="font-medium">Points:</span> {serialValidation.product.points}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
                 {serialValidation.isChecking && (
                   <p className="text-sm text-gray-500 mt-1">

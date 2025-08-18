@@ -414,7 +414,7 @@ Solar Inverter Installation Rewards System`;
     const statusConfig = {
       pending: { color: 'bg-yellow-100 text-yellow-800', icon: ClockIcon },
       approved: { color: 'bg-green-100 text-green-800', icon: CheckCircleIcon },
-      paid: { color: 'bg-blue-100 text-blue-800', icon: CheckCircleIcon },
+      paid: { color: 'bg-orange-100 text-orange-800', icon: CheckCircleIcon },
       rejected: { color: 'bg-red-100 text-red-800', icon: XCircleIcon },
       cancelled: { color: 'bg-gray-100 text-gray-800', icon: XCircleIcon }
     };

@@ -21,7 +21,9 @@ import {
   StarIcon,
   SpeakerXMarkIcon,
   UserPlusIcon,
-  TagIcon
+  TagIcon,
+  DocumentTextIcon,
+  Cog6ToothIcon as CogIcon
 } from '@heroicons/react/24/outline';
 import {
   StarIcon as StarIconSolid
@@ -31,6 +33,16 @@ import { chatService } from '../../services/chatService';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
+import {
+  StatsCard,
+  StatsCardIcon,
+  StatsCardHeader,
+  StatsCardContent,
+  StatsCardTitle,
+  StatsCardValue,
+  StatsCardDescription
+} from '../../components/ui/stats-card';
+import { GradientButton } from '../../components/ui/gradient-button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
@@ -281,193 +293,194 @@ const AdminDashboard = () => {
     <Layout title="Admin Dashboard">
       <div className="space-y-6">
         {/* Welcome Section */}
-        <Card className="bg-primary text-primary-foreground">
-          <CardContent className="p-4 sm:p-6">
-            <h1 className="text-xl sm:text-2xl font-bold mb-2">
-              Admin Dashboard
-            </h1>
-            <p className="text-sm sm:text-base text-primary-foreground/80">
-              Manage the SunX Loyalty Program
-            </p>
+        <Card variant="primary">
+          <CardContent className="p-6 sm:p-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-3 text-white">
+                  Admin Dashboard
+                </h1>
+                <p className="text-base sm:text-lg text-white/90 mb-4">
+                  Manage the SunX Loyalty Program
+                </p>
+                <div className="flex items-center gap-2 text-white/80">
+                  <StarIconSolid className="h-5 w-5" />
+                  <span className="text-sm font-medium">Professional Management Portal</span>
+                </div>
+              </div>
+              <div className="hidden sm:block">
+                <div className="w-20 h-20 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center">
+                  <UserGroupIcon className="h-10 w-10 text-white" />
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {/* Total Installers */}
-          <Card>
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <UserGroupIcon className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+          <StatsCard variant="default">
+            <StatsCardHeader>
+              <StatsCardIcon variant="default">
+                <UserGroupIcon className="h-6 w-6" />
+              </StatsCardIcon>
+              <StatsCardContent>
+                <StatsCardTitle>Total Installers</StatsCardTitle>
+                <StatsCardValue>{stats?.installers?.total || 0}</StatsCardValue>
+                <StatsCardDescription>
+                  <Badge variant="success" className="text-xs">
+                    {stats?.installers?.approved || 0} approved
+                  </Badge>
+                  {stats?.installers?.pending > 0 && (
+                    <Badge variant="warning" className="text-xs">
+                      {stats.installers.pending} pending
+                    </Badge>
+                  )}
+                  <div className="flex items-center text-xs text-green-600 font-medium">
+                    {getGrowthIndicator(stats?.installers?.growthRate)}
                   </div>
-                  <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">
-                      Total Installers
-                    </p>
-                    <p className="text-lg sm:text-2xl font-bold text-foreground">
-                      {stats?.installers?.total || 0}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1">
-                      <Badge variant="success" className="text-xs">
-                        {stats?.installers?.approved || 0} approved
-                      </Badge>
-                      {stats?.installers?.pending > 0 && (
-                        <Badge variant="warning" className="text-xs">
-                          {stats.installers.pending} pending
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex-shrink-0">
-                  {getGrowthIndicator(stats?.installers?.growthRate)}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </StatsCardDescription>
+              </StatsCardContent>
+            </StatsCardHeader>
+          </StatsCard>
 
           {/* Total Installations */}
-          <Card>
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <BoltIcon className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500" />
-                  </div>
-                  <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">
-                      Total Installations
-                    </p>
-                    <p className="text-lg sm:text-2xl font-bold text-foreground">
-                      {formatNumber(stats?.installations?.total || 0)}
-                    </p>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-1">
-                      <span className="text-xs text-blue-600">
-                        {stats?.installations?.recent || 0} recent
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        ~{stats?.installations?.averagePerInstaller || 0} avg/installer
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <StatsCard variant="secondary">
+            <StatsCardHeader>
+              <StatsCardIcon variant="secondary">
+                <BoltIcon className="h-6 w-6" />
+              </StatsCardIcon>
+              <StatsCardContent>
+                <StatsCardTitle>Total Installations</StatsCardTitle>
+                <StatsCardValue>{formatNumber(stats?.installations?.total || 0)}</StatsCardValue>
+                <StatsCardDescription>
+                  <Badge variant="info" className="text-xs">
+                    {stats?.installations?.recent || 0} recent
+                  </Badge>
+                  <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
+                    ~{stats?.installations?.averagePerInstaller || 0} avg/installer
+                  </span>
+                </StatsCardDescription>
+              </StatsCardContent>
+            </StatsCardHeader>
+          </StatsCard>
 
           {/* Pending Payments */}
-          <Card>
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <CurrencyDollarIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
+          <StatsCard variant="success">
+            <StatsCardHeader>
+              <StatsCardIcon variant="success">
+                <CurrencyDollarIcon className="h-6 w-6" />
+              </StatsCardIcon>
+              <StatsCardContent>
+                <StatsCardTitle className="text-white/90">Pending Payments</StatsCardTitle>
+                <StatsCardValue className="text-white">{stats?.payments?.pending || 0}</StatsCardValue>
+                <StatsCardDescription>
+                  <Badge variant="glass" className="text-xs">
+                    {formatCurrency(stats?.payments?.pendingAmount || 0)}
+                  </Badge>
+                  <span className="text-xs text-white/80 font-medium">
+                    {stats?.payments?.approved || 0} approved
+                  </span>
+                  <div className="flex items-center text-xs text-white/90 font-medium">
+                    {getGrowthIndicator(stats?.payments?.growthRate)}
                   </div>
-                  <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">
-                      Pending Payments
-                    </p>
-                    <p className="text-lg sm:text-2xl font-bold text-foreground">
-                      {stats?.payments?.pending || 0}
-                    </p>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-1">
-                      <span className="text-xs text-green-600">
-                        {formatCurrency(stats?.payments?.pendingAmount || 0)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {stats?.payments?.approved || 0} approved
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex-shrink-0">
-                  {getGrowthIndicator(stats?.payments?.growthRate)}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </StatsCardDescription>
+              </StatsCardContent>
+            </StatsCardHeader>
+          </StatsCard>
 
           {/* Active Promotions */}
-          <Card>
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <GiftIcon className="h-6 w-6 sm:h-8 sm:w-8 text-red-500" />
+          <StatsCard variant="glass">
+            <StatsCardHeader>
+              <StatsCardIcon variant="glass">
+                <GiftIcon className="h-6 w-6" />
+              </StatsCardIcon>
+              <StatsCardContent>
+                <StatsCardTitle>Active Promotions</StatsCardTitle>
+                <StatsCardValue>{stats?.promotions?.active || 0}</StatsCardValue>
+                <StatsCardDescription>
+                  <Badge variant="secondary" className="text-xs">
+                    {stats?.promotions?.total || 0} total
+                  </Badge>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                    {stats?.promotions?.expired || 0} expired
+                  </span>
+                </StatsCardDescription>
+              </StatsCardContent>
+            </StatsCardHeader>
+          </StatsCard>
+        </div>
+
+        {/* Admin Features Grid */}
+        <Card variant="glass">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-gray-900 dark:text-white">
+              Admin Dashboard Features
+            </CardTitle>
+            <CardDescription className="text-base">
+              Comprehensive management tools for the SunX Loyalty Program
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white mb-4 text-lg">
+                  Available Features:
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center p-3 bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-lg border border-orange-200 dark:border-orange-700">
+                    <UserGroupIcon className="h-5 w-5 text-primary mr-3" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">View and manage installer accounts</span>
                   </div>
-                  <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">
-                      Active Promotions
-                    </p>
-                    <p className="text-lg sm:text-2xl font-bold text-foreground">
-                      {stats?.promotions?.active || 0}
-                    </p>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-1">
-                      <span className="text-xs text-blue-600">
-                        {stats?.promotions?.total || 0} total
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {stats?.promotions?.expired || 0} expired
-                      </span>
-                    </div>
+                  <div className="flex items-center p-3 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg border border-green-200 dark:border-green-700">
+                    <CurrencyDollarIcon className="h-5 w-5 text-green-600 mr-3" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Approve/reject payment requests</span>
+                  </div>
+                  <div className="flex items-center p-3 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg border border-purple-200 dark:border-purple-700">
+                    <GiftIcon className="h-5 w-5 text-purple-600 mr-3" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Create and manage promotions</span>
+                  </div>
+                  <div className="flex items-center p-3 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                    <ChartBarIcon className="h-5 w-5 text-blue-600 mr-3" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Monitor system analytics</span>
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Placeholder Content */}
-        <div className="card">
-          <div className="card-header">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Admin Dashboard Features
-            </h2>
-          </div>
-          <div className="card-body">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h3 className="font-medium text-gray-900 dark:text-white mb-3">
-                  Available Features:
-                </h3>
-                <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                  <li>• View and manage installer accounts</li>
-                  <li>• Approve/reject payment requests</li>
-                  <li>• Create and manage promotions</li>
-                  <li>• Monitor system analytics</li>
-                  <li>• Generate reports</li>
-                </ul>
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900 dark:text-white mb-3">
+                <h3 className="font-bold text-gray-900 dark:text-white mb-4 text-lg">
                   Quick Actions:
                 </h3>
-                <div className="space-y-2">
-                  <button
+                <div className="space-y-3">
+                  <GradientButton
+                    variant="orange"
                     onClick={() => window.location.href = '/admin/activities'}
-                    className="btn-outline w-full"
+                    className="w-full justify-start"
                   >
+                    <ClockIcon className="h-4 w-4 mr-2" />
                     View Recent Activities
-                  </button>
-                  <button
+                  </GradientButton>
+                  <GradientButton
+                    variant="forest"
                     onClick={() => window.location.href = '/admin/reports'}
-                    className="btn-outline w-full"
+                    className="w-full justify-start"
                   >
+                    <DocumentTextIcon className="h-4 w-4 mr-2" />
                     Generate Monthly Report
-                  </button>
-                  <button
+                  </GradientButton>
+                  <GradientButton
+                    variant="royal"
                     onClick={() => window.location.href = '/admin/settings'}
-                    className="btn-outline w-full"
+                    className="w-full justify-start"
                   >
+                    <CogIcon className="h-4 w-4 mr-2" />
                     System Settings
-                  </button>
+                  </GradientButton>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Detailed Statistics */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -606,15 +619,15 @@ const AdminDashboard = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg">
                   <div className="flex items-center">
-                    <UsersIcon className="h-6 w-6 text-blue-500 mr-3" />
+                    <UsersIcon className="h-6 w-6 text-orange-500 mr-3" />
                     <div>
-                      <div className="text-sm text-blue-600 dark:text-blue-400">Active Users</div>
-                      <div className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+                      <div className="text-sm text-orange-600 dark:text-orange-400">Active Users</div>
+                      <div className="text-lg font-semibold text-orange-900 dark:text-orange-100">
                         {systemAnalytics.userActivity.activeUsers}
                       </div>
-                      <div className="text-xs text-blue-500">
+                      <div className="text-xs text-orange-500">
                         {systemAnalytics.userActivity.activeUserPercentage}% of total
                       </div>
                     </div>
@@ -703,7 +716,7 @@ const AdminDashboard = () => {
                 onClick={() => window.location.href = '/admin/serials'}
                 className="btn-outline text-left p-3 sm:p-4 touch-manipulation"
               >
-                <BoltIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500 mb-2" />
+                <BoltIcon className="h-5 w-5 sm:h-6 sm:w-6 text-orange-500 mb-2" />
                 <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">Serial Numbers</div>
                 <div className="text-xs text-gray-500">
                   {stats?.serials?.recent || 0} recent submissions
@@ -797,13 +810,13 @@ const AdminDashboard = () => {
                             key={conversation.id}
                             className={`flex items-center justify-between p-4 rounded-lg border ${
                               hasUnread
-                                ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800'
+                                ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800'
                                 : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
                             }`}
                           >
                             <div className="flex items-center space-x-3">
                               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                                hasUnread ? 'bg-blue-500' : 'bg-gray-500'
+                                hasUnread ? 'bg-orange-500' : 'bg-gray-500'
                               }`}>
                                 <span className="text-white font-medium text-sm">
                                   {installer?.name?.charAt(0) || 'U'}

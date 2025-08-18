@@ -29,6 +29,8 @@ import PaymentHistory from './pages/installer/PaymentHistory';
 import Promotions from './pages/installer/Promotions';
 import PromotionProgress from './pages/installer/PromotionProgress';
 import PromotionHistory from './pages/installer/PromotionHistory';
+import InstallerDocuments from './pages/installer/Documents';
+import Training from './pages/installer/Training';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
@@ -44,14 +46,15 @@ import AdminActivities from './pages/admin/Activities';
 import AdminNotifications from './pages/admin/Notifications';
 import Chat from './pages/Chat';
 import AdminValidSerials from './pages/admin/ValidSerials';
+import AdminProducts from './pages/admin/Products';
 import BackupManagement from './pages/admin/BackupManagement';
-
-// Training & Download Pages
-import Training from './pages/Training';
-import TrainingCategory from './pages/TrainingCategory';
-import VideoPlayer from './pages/VideoPlayer';
-import DownloadCenter from './pages/DownloadCenter';
-import DocumentCategory from './pages/DocumentCategory';
+// Training management pages
+import TrainingCategories from './pages/admin/TrainingCategories';
+import TrainingVideos from './pages/admin/TrainingVideos';
+// Document management pages
+import AdminDocuments from './pages/admin/Documents';
+import AdminDocumentCategories from './pages/admin/DocumentCategories';
+import AdminDocumentUpload from './pages/admin/DocumentUpload';
 
 // Error Pages
 import NotFound from './pages/NotFound';
@@ -119,17 +122,56 @@ function App() {
                 </ProtectedRoute>
               } />
 
-              {/* Training & Download Center Routes */}
-              <Route path="/training" element={<Training />} />
-              <Route path="/training/category/:categoryId" element={<TrainingCategory />} />
-              <Route path="/training/video/:videoId" element={<VideoPlayer />} />
-              <Route path="/downloads" element={<DownloadCenter />} />
-              <Route path="/downloads/category/:categoryId" element={<DocumentCategory />} />
+              {/* Training Routes */}
+              <Route path="/training" element={
+                <ProtectedRoute>
+                  <Training />
+                </ProtectedRoute>
+              } />
+
+              {/* Document Center Routes */}
+              <Route path="/documents" element={
+                <ProtectedRoute>
+                  <InstallerDocuments />
+                </ProtectedRoute>
+              } />
 
               {/* Protected Admin Routes */}
               <Route path="/admin/dashboard" element={
                 <AdminRoute>
                   <AdminDashboard />
+                </AdminRoute>
+              } />
+              {/* Admin training management routes */}
+              <Route path="/admin/training/categories" element={
+                <AdminRoute>
+                  <TrainingCategories />
+                </AdminRoute>
+              } />
+              <Route path="/admin/training/videos" element={
+                <AdminRoute>
+                  <TrainingVideos />
+                </AdminRoute>
+              } />
+              <Route path="/admin/training/videos/add" element={
+                <AdminRoute>
+                  <TrainingVideos />
+                </AdminRoute>
+              } />
+              {/* Admin document management routes */}
+              <Route path="/admin/documents" element={
+                <AdminRoute>
+                  <AdminDocuments />
+                </AdminRoute>
+              } />
+              <Route path="/admin/documents/categories" element={
+                <AdminRoute>
+                  <AdminDocumentCategories />
+                </AdminRoute>
+              } />
+              <Route path="/admin/documents/upload" element={
+                <AdminRoute>
+                  <AdminDocumentUpload />
                 </AdminRoute>
               } />
               <Route path="/admin/installers" element={
@@ -150,6 +192,11 @@ function App() {
               <Route path="/admin/valid-serials" element={
                 <AdminRoute>
                   <AdminValidSerials />
+                </AdminRoute>
+              } />
+              <Route path="/admin/products" element={
+                <AdminRoute>
+                  <AdminProducts />
                 </AdminRoute>
               } />
               <Route path="/admin/promotions" element={

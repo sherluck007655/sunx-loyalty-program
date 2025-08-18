@@ -156,7 +156,7 @@ const Dashboard = () => {
                 <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-4 text-sm">
                   <div className="flex items-center">
                     <BoltIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1" />
-                    <span>{stats?.totalInverters || 0} Inverters</span>
+                    <span>{stats?.totalProducts || stats?.totalInverters || 0} Products Installed</span>
                   </div>
                   <div className="flex items-center">
                     <TrophyIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1" />
@@ -222,7 +222,7 @@ const Dashboard = () => {
                   Milestones Achieved
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {(stats?.milestones?.completed || 0) * 10} total installations
+                  {(stats?.milestones?.completed || 0) * 1000} total points earned
                 </p>
               </div>
 
@@ -264,7 +264,7 @@ const Dashboard = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">
-                    {stats?.milestones?.currentProgress || 0} / 10 Inverters
+                    {stats?.milestones?.currentProgress || 0} / 1000 Points
                   </span>
                   <span className="text-sm font-medium text-primary">
                     {(stats?.milestones?.progressPercentage !== undefined && !isNaN(stats.milestones.progressPercentage))
@@ -292,9 +292,9 @@ const Dashboard = () => {
                   </p>
                 </div>
 
-                {stats?.milestones?.currentProgress === 10 && !stats?.milestones?.hasUnclaimedMilestone && (
-                  <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <p className="text-sm text-blue-800 dark:text-blue-200 text-center">
+                {stats?.milestones?.currentProgress === 1000 && !stats?.milestones?.hasUnclaimedMilestone && (
+                  <div className="p-3 bg-orange-50 dark:bg-orange-950 rounded-lg border border-orange-200 dark:border-orange-800">
+                    <p className="text-sm text-orange-800 dark:text-orange-200 text-center">
                       🎉 Milestone completed! Check your completed milestones to claim reward.
                     </p>
                   </div>
@@ -314,10 +314,10 @@ const Dashboard = () => {
                 </div>
                 <div className="ml-3 sm:ml-4 min-w-0">
                   <p className="text-xs sm:text-sm font-medium text-muted-foreground">
-                    Total Inverters
+                    Products Installed
                   </p>
                   <p className="text-lg sm:text-2xl font-bold text-foreground">
-                    {stats?.totalInverters || 0}
+                    {stats?.totalProducts || stats?.totalInverters || 0}
                   </p>
                 </div>
               </div>
@@ -576,7 +576,7 @@ const Dashboard = () => {
                     No payments yet
                   </p>
                   <p className="text-sm text-gray-400">
-                    Complete 10 installations to become eligible
+                    Complete 1000 points to become eligible
                   </p>
                 </div>
               )}

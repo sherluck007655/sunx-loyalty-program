@@ -2,13 +2,16 @@ const express = require('express');
 const router = express.Router();
 const TrainingCategory = require('../models/TrainingCategory');
 const TrainingVideo = require('../models/TrainingVideo');
-const VideoView = require('../models/VideoView');
 const { protectInstaller } = require('../middleware/auth');
+
+// Apply installer authentication to all routes
+router.use(protectInstaller);
 
 // Get all training categories with video counts
 router.get('/categories', async (req, res) => {
     try {
-        const categories = await TrainingCategory.getActiveWithVideos();
+        const categories = await TrainingCategory.getActiveWithCounts();
+        
         res.json({
             success: true,
             data: categories
@@ -17,7 +20,8 @@ router.get('/categories', async (req, res) => {
         console.error('Error fetching training categories:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch training categories'
+            message: 'Failed to fetch training categories',
+            error: error.message
         });
     }
 });
@@ -26,131 +30,167 @@ router.get('/categories', async (req, res) => {
 router.get('/categories/:categoryId/videos', async (req, res) => {
     try {
         const { categoryId } = req.params;
-        const { page = 1, limit = 20, difficulty } = req.query;
-        
-        const query = { 
-            categoryId, 
-            isActive: true 
+        const {
+            page = 1,
+            limit = 12,
+            difficulty,
+            platform,
+            search,
+            sortBy = 'createdAt',
+            sortOrder = 'desc'
+        } = req.query;
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const sort = sortOrder === 'desc' ? -1 : 1;
+
+        const searchOptions = {
+            categoryId,
+            difficulty,
+            platform,
+            sortBy,
+            sortOrder: sort,
+            limit: parseInt(limit),
+            skip
         };
-        
-        if (difficulty) {
-            query.difficulty = difficulty;
-        }
-        
-        const skip = (page - 1) * limit;
-        
-        const [videos, total, category] = await Promise.all([
-            TrainingVideo.find(query)
-                .populate('categoryId', 'name slug')
-                .sort({ sortOrder: 1, createdAt: -1 })
-                .skip(skip)
-                .limit(parseInt(limit)),
-            TrainingVideo.countDocuments(query),
-            TrainingCategory.findById(categoryId)
-        ]);
-        
-        if (!category) {
-            return res.status(404).json({
-                success: false,
-                message: 'Category not found'
-            });
-        }
-        
+
+        const videos = await TrainingVideo.search(search, searchOptions);
+        const total = await TrainingVideo.countDocuments({ 
+            categoryId,
+            isActive: true,
+            ...(difficulty && { difficulty }),
+            ...(platform && { platform })
+        });
+
         res.json({
             success: true,
-            data: {
-                videos,
-                category,
-                pagination: {
-                    page: parseInt(page),
-                    limit: parseInt(limit),
-                    total,
-                    pages: Math.ceil(total / limit)
-                }
+            data: videos,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total,
+                pages: Math.ceil(total / parseInt(limit))
             }
         });
     } catch (error) {
         console.error('Error fetching category videos:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch videos'
+            message: 'Failed to fetch category videos',
+            error: error.message
+        });
+    }
+});
+
+// Get all videos with filtering and pagination
+router.get('/videos', async (req, res) => {
+    try {
+        const {
+            page = 1,
+            limit = 12,
+            categoryId,
+            difficulty,
+            platform,
+            search,
+            sortBy = 'createdAt',
+            sortOrder = 'desc'
+        } = req.query;
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const sort = sortOrder === 'desc' ? -1 : 1;
+
+        const searchOptions = {
+            categoryId,
+            difficulty,
+            platform,
+            sortBy,
+            sortOrder: sort,
+            limit: parseInt(limit),
+            skip
+        };
+
+        const videos = await TrainingVideo.search(search, searchOptions);
+        const total = await TrainingVideo.countDocuments({ 
+            isActive: true,
+            ...(categoryId && { categoryId }),
+            ...(difficulty && { difficulty }),
+            ...(platform && { platform })
+        });
+
+        res.json({
+            success: true,
+            data: videos,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total,
+                pages: Math.ceil(total / parseInt(limit))
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching training videos:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch training videos',
+            error: error.message
         });
     }
 });
 
 // Get single video details
-router.get('/videos/:videoId', async (req, res) => {
+router.get('/videos/:id', async (req, res) => {
     try {
-        const { videoId } = req.params;
-        
-        const video = await TrainingVideo.findById(videoId)
-            .populate('categoryId', 'name slug');
+        const video = await TrainingVideo.findById(req.params.id)
+            .populate('categoryId', 'name slug color')
+            .populate('uploadedBy', 'name email');
         
         if (!video || !video.isActive) {
             return res.status(404).json({
                 success: false,
-                message: 'Video not found'
+                message: 'Training video not found'
             });
         }
-        
-        // Record view (no authentication required for viewing)
-        await video.incrementViewCount();
-        
+
         res.json({
             success: true,
             data: video
         });
     } catch (error) {
-        console.error('Error fetching video:', error);
+        console.error('Error fetching training video:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch video'
+            message: 'Failed to fetch training video',
+            error: error.message
         });
     }
 });
 
-// Search videos
-router.get('/search', async (req, res) => {
+// Increment video view count
+router.post('/videos/:id/view', async (req, res) => {
     try {
-        const { q, category, difficulty, page = 1, limit = 20 } = req.query;
+        const video = await TrainingVideo.findById(req.params.id);
         
-        if (!q && !category && !difficulty) {
-            return res.status(400).json({
+        if (!video || !video.isActive) {
+            return res.status(404).json({
                 success: false,
-                message: 'Search query, category, or difficulty is required'
+                message: 'Training video not found'
             });
         }
-        
-        const skip = (page - 1) * limit;
-        
-        const videos = await TrainingVideo.searchVideos(q, category, difficulty)
-            .skip(skip)
-            .limit(parseInt(limit));
-        
-        const total = await TrainingVideo.countDocuments({
-            ...(q && { $text: { $search: q } }),
-            ...(category && { categoryId: category }),
-            ...(difficulty && { difficulty }),
-            isActive: true
-        });
-        
+
+        await video.incrementView();
+
         res.json({
             success: true,
+            message: 'View count updated',
             data: {
-                videos,
-                pagination: {
-                    page: parseInt(page),
-                    limit: parseInt(limit),
-                    total,
-                    pages: Math.ceil(total / limit)
-                }
+                viewCount: video.viewCount
             }
         });
     } catch (error) {
-        console.error('Error searching videos:', error);
+        console.error('Error updating view count:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to search videos'
+            message: 'Failed to update view count',
+            error: error.message
         });
     }
 });
@@ -158,8 +198,7 @@ router.get('/search', async (req, res) => {
 // Get featured videos
 router.get('/featured', async (req, res) => {
     try {
-        const { limit = 5 } = req.query;
-        
+        const { limit = 6 } = req.query;
         const videos = await TrainingVideo.getFeatured(parseInt(limit));
         
         res.json({
@@ -170,7 +209,8 @@ router.get('/featured', async (req, res) => {
         console.error('Error fetching featured videos:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch featured videos'
+            message: 'Failed to fetch featured videos',
+            error: error.message
         });
     }
 });
@@ -178,8 +218,7 @@ router.get('/featured', async (req, res) => {
 // Get popular videos
 router.get('/popular', async (req, res) => {
     try {
-        const { limit = 10 } = req.query;
-        
+        const { limit = 6 } = req.query;
         const videos = await TrainingVideo.getPopular(parseInt(limit));
         
         res.json({
@@ -190,88 +229,121 @@ router.get('/popular', async (req, res) => {
         console.error('Error fetching popular videos:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch popular videos'
+            message: 'Failed to fetch popular videos',
+            error: error.message
         });
     }
 });
 
-// Get user's watch history (authenticated users only)
-router.get('/history', protectInstaller, async (req, res) => {
+// Get recent videos
+router.get('/recent', async (req, res) => {
     try {
-        const { page = 1, limit = 20 } = req.query;
-        
-        const history = await VideoView.getUserWatchHistory(
-            req.installer._id,
-            parseInt(page),
-            parseInt(limit)
-        );
-
-        const total = await VideoView.countDocuments({ userId: req.installer._id });
+        const { limit = 6 } = req.query;
+        const videos = await TrainingVideo.find({ isActive: true })
+            .sort({ createdAt: -1 })
+            .limit(parseInt(limit))
+            .populate('categoryId', 'name slug color');
         
         res.json({
             success: true,
-            data: {
-                history,
-                pagination: {
-                    page: parseInt(page),
-                    limit: parseInt(limit),
-                    total,
-                    pages: Math.ceil(total / limit)
-                }
-            }
+            data: videos
         });
     } catch (error) {
-        console.error('Error fetching watch history:', error);
+        console.error('Error fetching recent videos:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch watch history'
+            message: 'Failed to fetch recent videos',
+            error: error.message
         });
     }
 });
 
-// Record video view progress (authenticated users only)
-router.post('/videos/:videoId/progress', protectInstaller, async (req, res) => {
+// Search videos
+router.get('/search', async (req, res) => {
     try {
-        const { videoId } = req.params;
-        const { watchDuration, completed = false } = req.body;
-        
-        const video = await TrainingVideo.findById(videoId);
-        if (!video) {
-            return res.status(404).json({
+        const {
+            q: query,
+            page = 1,
+            limit = 12,
+            categoryId,
+            difficulty,
+            platform,
+            sortBy = 'relevance'
+        } = req.query;
+
+        if (!query || query.trim() === '') {
+            return res.status(400).json({
                 success: false,
-                message: 'Video not found'
+                message: 'Search query is required'
             });
         }
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        let sortOrder = -1;
+        let sortField = 'createdAt';
+
+        // Handle different sort options
+        switch (sortBy) {
+            case 'newest':
+                sortField = 'createdAt';
+                sortOrder = -1;
+                break;
+            case 'oldest':
+                sortField = 'createdAt';
+                sortOrder = 1;
+                break;
+            case 'popular':
+                sortField = 'viewCount';
+                sortOrder = -1;
+                break;
+            case 'relevance':
+            default:
+                sortField = 'score';
+                sortOrder = { $meta: 'textScore' };
+                break;
+        }
+
+        const searchOptions = {
+            categoryId,
+            difficulty,
+            platform,
+            sortBy: sortField,
+            sortOrder,
+            limit: parseInt(limit),
+            skip
+        };
+
+        const videos = await TrainingVideo.search(query.trim(), searchOptions);
         
-        // Update or create view record
-        await VideoView.findOneAndUpdate(
-            {
-                videoId,
-                userId: req.installer._id,
-                viewedAt: {
-                    $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Within last 24 hours
-                }
-            },
-            {
-                watchDuration,
-                completed,
-                viewedAt: new Date()
-            },
-            { 
-                upsert: true, 
-                new: true 
-            }
-        );
+        // Get total count for pagination
+        const searchQuery = { 
+            isActive: true,
+            $text: { $search: query.trim() }
+        };
         
+        if (categoryId) searchQuery.categoryId = categoryId;
+        if (difficulty) searchQuery.difficulty = difficulty;
+        if (platform) searchQuery.platform = platform;
+
+        const total = await TrainingVideo.countDocuments(searchQuery);
+
         res.json({
             success: true,
-            message: 'Progress recorded'
+            data: videos,
+            query: query.trim(),
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total,
+                pages: Math.ceil(total / parseInt(limit))
+            }
         });
     } catch (error) {
-        console.error('Error recording video progress:', error);
+        console.error('Error searching videos:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to record progress'
+            message: 'Failed to search videos',
+            error: error.message
         });
     }
 });

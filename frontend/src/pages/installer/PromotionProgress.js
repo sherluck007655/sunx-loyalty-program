@@ -62,7 +62,7 @@ const PromotionProgress = () => {
 
   const getProgressColor = (percentage) => {
     if (percentage >= 100) return 'bg-green-500';
-    if (percentage >= 75) return 'bg-blue-500';
+    if (percentage >= 75) return 'bg-orange-500';
     if (percentage >= 50) return 'bg-yellow-500';
     return 'bg-gray-300';
   };
@@ -70,7 +70,7 @@ const PromotionProgress = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'completed': return 'text-green-600 bg-green-100';
-      case 'active': return 'text-blue-600 bg-blue-100';
+      case 'active': return 'text-orange-600 bg-orange-100';
       case 'expired': return 'text-gray-600 bg-gray-100';
       default: return 'text-gray-600 bg-gray-100';
     }
@@ -148,7 +148,7 @@ const PromotionProgress = () => {
               </div>
               <div className="text-right">
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                  isCompleted ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                  isCompleted ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
                 }`}>
                   {isCompleted ? 'Completed' : 'In Progress'}
                 </span>
@@ -232,16 +232,16 @@ const PromotionProgress = () => {
 
             {/* Progress Details by Type */}
             {promotion.type === 'quality_target' && progress.rating !== undefined && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-3">
+              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-orange-900 dark:text-orange-100 mb-3">
                   Quality Requirements
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <span className="text-sm text-blue-700 dark:text-blue-300">Installations:</span>
-                    <p className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+                    <span className="text-sm text-orange-700 dark:text-orange-300">Installations:</span>
+                    <p className="text-lg font-semibold text-orange-900 dark:text-orange-100">
                       {progress.current} / {progress.target}
-                      <span className={`ml-2 text-sm ${progress.current >= progress.target ? 'text-green-600' : 'text-blue-600'}`}>
+                      <span className={`ml-2 text-sm ${progress.current >= progress.target ? 'text-green-600' : 'text-orange-600'}`}>
                         {progress.current >= progress.target ? '✓' : '○'}
                       </span>
                     </p>

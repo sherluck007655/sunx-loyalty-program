@@ -126,6 +126,8 @@ validSerialSchema.methods.getDisplayInfo = function() {
     usedBy: this.usedBy,
     usedAt: this.usedAt,
     addedBy: this.addedBy,
+    product: this.product,
+    pointsAwarded: this.pointsAwarded,
     notes: this.notes,
     createdAt: this.createdAt
   };

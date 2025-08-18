@@ -7,12 +7,25 @@ const { protectAdmin } = require('../../middleware/auth');
 // Get all products
 router.get('/', protectAdmin, async (req, res) => {
   try {
+    // Set aggressive no-cache headers
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate, private, max-age=0',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Last-Modified': new Date().toUTCString(),
+      'ETag': `"${Date.now()}-${Math.random()}"`
+    });
+
     const { type, isActive, search } = req.query;
+    console.log('🔍 GET products query params:', { type, isActive, search });
+
     let query = {};
-    
+
     if (type) query.type = type;
-    if (isActive !== undefined) query.isActive = isActive === 'true';
-    
+    if (isActive !== undefined && isActive !== '') query.isActive = isActive === 'true';
+
+    console.log('🔍 Final MongoDB query:', query);
+
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -20,12 +33,12 @@ router.get('/', protectAdmin, async (req, res) => {
         { manufacturer: { $regex: search, $options: 'i' } }
       ];
     }
-    
+
     const products = await Product.find(query)
       .sort({ type: 1, name: 1, model: 1 })
       .populate('createdBy', 'name')
       .populate('updatedBy', 'name');
-    
+
     res.json({
       success: true,
       data: products
@@ -72,21 +85,35 @@ router.get('/:id', protectAdmin, async (req, res) => {
 // Create new product
 router.post('/', protectAdmin, async (req, res) => {
   try {
+    console.log('🔍 Creating product with data:', req.body);
+    console.log('🔍 Admin ID:', req.admin.id);
+
     const productData = {
       ...req.body,
       createdBy: req.admin.id
     };
-    
+
+    console.log('🔍 Final product data:', productData);
+
     const product = new Product(productData);
-    await product.save();
-    
+    console.log('🔍 Product instance created:', product);
+
+    const savedProduct = await product.save();
+    console.log('✅ Product saved successfully:', savedProduct);
+
+    // Verify it was actually saved
+    const verifyProduct = await Product.findById(savedProduct._id);
+    console.log('🔍 Verification - Product found in DB:', verifyProduct ? 'YES' : 'NO');
+
     res.status(201).json({
       success: true,
       message: 'Product created successfully',
-      data: product
+      data: savedProduct
     });
   } catch (error) {
-    console.error('Error creating product:', error);
+    console.error('❌ Error creating product:', error);
+    console.error('❌ Error details:', error.message);
+    console.error('❌ Error stack:', error.stack);
     res.status(400).json({
       success: false,
       message: 'Error creating product',
@@ -180,36 +207,49 @@ router.patch('/:id/points', protectAdmin, async (req, res) => {
   }
 });
 
-// Delete product (soft delete)
+// Delete product
 router.delete('/:id', protectAdmin, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-    
+
     if (!product) {
       return res.status(404).json({
         success: false,
         message: 'Product not found'
       });
     }
-    
-    // Check if product has associated serial numbers
+
+    const force = (req.query.force === 'true');
+
+    // Count associated valid serials
     const serialCount = await ValidSerial.countDocuments({ product: product._id });
-    
+
+    if (force) {
+      // Permanently delete product and its associated valid serials
+      const removed = await ValidSerial.deleteMany({ product: product._id });
+      await Product.findByIdAndDelete(req.params.id);
+
+      return res.json({
+        success: true,
+        message: `Product permanently deleted. Removed ${removed.deletedCount || 0} associated valid serial(s).`
+      });
+    }
+
     if (serialCount > 0) {
       // Soft delete - mark as inactive
       product.isActive = false;
       product.updatedBy = req.admin.id;
       await product.save();
-      
-      res.json({
+
+      return res.json({
         success: true,
         message: `Product deactivated successfully. ${serialCount} serial numbers are associated with this product.`
       });
     } else {
       // Hard delete if no serial numbers
       await Product.findByIdAndDelete(req.params.id);
-      
-      res.json({
+
+      return res.json({
         success: true,
         message: 'Product deleted successfully'
       });

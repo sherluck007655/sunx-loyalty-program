@@ -73,7 +73,7 @@ const LandingPage = () => {
               </Link>
               <Link
                 to="/register"
-                className="btn-primary text-sm px-3 py-2"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-sm"
               >
                 <span className="hidden sm:inline">Get Started</span>
                 <span className="sm:hidden">Join</span>
@@ -214,7 +214,7 @@ const LandingPage = () => {
           </p>
           <Link
             to="/register"
-            className="btn-primary text-base sm:text-lg px-6 sm:px-8 py-3 w-full sm:w-auto max-w-xs sm:max-w-none mx-auto touch-manipulation"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium py-3 px-6 sm:px-8 rounded-lg transition-colors duration-200 text-base sm:text-lg w-full sm:w-auto max-w-xs sm:max-w-none mx-auto touch-manipulation inline-flex items-center justify-center"
           >
             Get Started Today
           </Link>
